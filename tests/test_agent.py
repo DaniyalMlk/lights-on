@@ -26,17 +26,29 @@ class ScriptedModel(GenericFakeChatModel):
         return self
 
 
-def test_agent_calls_analyze_building(monkeypatch):
+def test_orchestrator_delegates_and_the_analyst_runs_the_tool(monkeypatch, tmp_path):
+    """The orchestrator has no analysis tools: it hands SAMPLE-1 to the analyst, who calls analyze_building."""
     script = iter([
-        AIMessage(content="", tool_calls=[{"name": "analyze_building", "args": {"building_id": "SAMPLE-1"}, "id": "call_1"}]),
-        AIMessage(content="Done."),
+        AIMessage(content="", tool_calls=[{"name": "task", "id": "call_1", "args": {
+            "subagent_type": "analyst", "description": "Analyze SAMPLE-1"}}]),                        # orchestrator
+        AIMessage(content="", tool_calls=[{"name": "analyze_building", "args": {"building_id": "SAMPLE-1"},
+                                           "id": "call_2"}]),                                          # analyst
+        AIMessage(content="Analyst: 190 homes."),                                                      # analyst
+        AIMessage(content="Done."),                                                                    # orchestrator
     ])
-    monkeypatch.setenv("LIGHTS_ON_MODEL", "unused")
     monkeypatch.setattr(A.os, "environ", {"LIGHTS_ON_MODEL": ScriptedModel(messages=script)})
     out = A.run_agent("Analyze SAMPLE-1")
     tool_msgs = [m for m in out["trace"] if m["type"] == "tool"]
-    assert tool_msgs and '"status": "success"' in tool_msgs[0]["content"]
+    assert tool_msgs and "Analyst: 190 homes." in tool_msgs[0]["content"]
+    assert (tmp_path / "SAMPLE-1" / "geometry.json").exists()          # the analyst's tool really ran
     assert out["answer"] == "Done."
+
+
+def test_orchestrator_has_no_analysis_tools(monkeypatch):
+    monkeypatch.setattr(A.os, "environ", {"LIGHTS_ON_MODEL": ScriptedModel(messages=iter([]))})
+    names = {n for n in A.build_agent().get_graph().nodes}
+    assert "tools" in names                                             # deepagents' own tools (todos, files, task)
+    assert "analyze_building" not in str(A.build_agent().nodes["tools"].bound.tools_by_name)
 
 
 def test_stream_records_a_trace_and_replays_it(monkeypatch, tmp_path):

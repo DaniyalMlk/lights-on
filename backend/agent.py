@@ -166,7 +166,9 @@ SUBAGENTS = [
         "description": "Writes a short memo and an owner email from the saved results.",
         "system_prompt": (
             "Read /work/<id>/*.json with your file tools and write a 200-word memo and a short owner email. "
-            "Every number must be copied from those files. Never round to a different precision than shown."
+            "Every number must come from those files, rounded for a reader: money like $38.6M or $107 per SF, "
+            "shares like 62%, areas with commas like 359,962 SF, homes as whole numbers. Rounding is the only "
+            "change allowed: the verifier checks each number against the files."
         ),
         "tools": [],
     },
@@ -180,6 +182,7 @@ SUBAGENTS = [
 
 INSTRUCTIONS = """You help a credit analyst decide which empty downtown Houston offices can become apartments.
 Plan with your todo list. Then: screener -> analyst (top buildings) -> writer -> verifier.
+You have no analysis tools yourself: hand each step to its sub-agent with the task tool.
 If the verifier rejects a number, send the draft back to the writer once with the fixes.
 Never state a number that isn't in a tool output. Ask before writing if data is missing."""
 
@@ -200,7 +203,7 @@ def build_agent():
     backend = CompositeBackend(default=StateBackend(), routes=_work_routes())
     return create_deep_agent(
         model=os.environ["LIGHTS_ON_MODEL"],
-        tools=[find_candidates, analyze_building, check_matterport, verify_numbers],
+        tools=[],                      # the orchestrator plans and delegates; each sub-agent has its own tools
         system_prompt=INSTRUCTIONS,
         subagents=SUBAGENTS,
         backend=backend,
