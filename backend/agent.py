@@ -232,15 +232,27 @@ If the verifier rejects a number, send the draft back to the writer once with th
 Never state a number that isn't in a tool output. Ask before writing if data is missing."""
 
 
+class ReadOnlyFiles(FilesystemBackend):
+    """The agent may read the saved tool outputs but never change them."""
+
+    def write(self, file_path: str, content: str):
+        from deepagents.backends.protocol import WriteResult
+        return WriteResult(error="/work/ is read-only: keep drafts in your reply, or write them under /drafts/")
+
+    def edit(self, file_path: str, old_string: str, new_string: str, replace_all: bool = False):
+        from deepagents.backends.protocol import EditResult
+        return EditResult(error="/work/ is read-only: keep drafts in your reply, or write them under /drafts/")
+
+
 def _work_routes() -> dict:
     """The model reads tool outputs through /work/. Without CoStar's OK it can open only the sample folders."""
     if real_data_allowed():
-        return {"/work/": FilesystemBackend(root_dir=str(WORK_DIR), virtual_mode=True)}
+        return {"/work/": ReadOnlyFiles(root_dir=str(WORK_DIR), virtual_mode=True)}
     routes = {}
     for building_id in _buildings():
         folder = WORK_DIR / building_id
         folder.mkdir(parents=True, exist_ok=True)
-        routes[f"/work/{building_id}/"] = FilesystemBackend(root_dir=str(folder), virtual_mode=True)
+        routes[f"/work/{building_id}/"] = ReadOnlyFiles(root_dir=str(folder), virtual_mode=True)
     return routes
 
 

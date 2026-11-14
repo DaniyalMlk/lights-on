@@ -51,3 +51,11 @@ def test_max_rpm_paces_the_model(monkeypatch):
     assert limiter is not None and abs(limiter.requests_per_second - 0.2) < 1e-9
     monkeypatch.delenv("LIGHTS_ON_MAX_RPM")
     assert A._model() == "google_genai:some-model"               # no pacing: the plain string, as before
+
+
+def test_the_agent_cannot_change_saved_results(tmp_path):
+    (tmp_path / "econ.json").write_text('{"residual": -1}')
+    files = A.ReadOnlyFiles(root_dir=str(tmp_path), virtual_mode=True)
+    assert files.write("/econ.json", "{}").error and files.edit("/econ.json", "-1", "5").error
+    assert (tmp_path / "econ.json").read_text() == '{"residual": -1}'
+    assert "-1" in str(files.read("/econ.json"))                     # reading still works

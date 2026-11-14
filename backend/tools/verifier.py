@@ -6,7 +6,8 @@ How a number passes:
   "... homes" only home counts, "... SF" only areas, "... t" only carbon.
 - It can be rounded the way it's shown: "$2.42" matches 2.4167, "6,000" matches 5,987,
   "25.6%" matches 0.256, "$52M" matches 52,000,000.
-Only years and IDs (numbers glued to letters, like TABS2025025699 or 1BR) are skipped.
+Only years, IDs (numbers glued to letters, like TABS2025025699 or 1BR) and the building's own id and street
+number (234004, the 1801 in "1801 Smith St") are skipped.
 """
 from __future__ import annotations
 
@@ -83,8 +84,15 @@ def candidates(values, kind, pct):
             yield path, x * 100
 
 
+def own_identifiers(work: dict) -> set[str]:
+    """The building's own id and the numbers in its address ("1801" in "1801 Smith St"). Not facts to check."""
+    b = work.get("building") or {}
+    return {str(b.get("id", ""))} | set(re.findall(r"\d+", str(b.get("address", "")))) - {""}
+
+
 def verify(text: str, work: dict) -> dict:
     values = collect_values(work)
+    own = own_identifiers(work)
     passed, rejected, skipped = [], [], []
     for m in NUM_RE.finditer(text):
         raw = m.group(0)
@@ -96,6 +104,9 @@ def verify(text: str, work: dict) -> dict:
         scale = MULT[mult] if mult else 1.0
         kind = number_kind(m, text[m.end(): m.end() + 14])
 
+        if kind is None and not (frac or mult or pct or m.group("cur")) and int_part in own:
+            skipped.append({"text": raw, "reason": "building id or street number"})
+            continue
         if kind is None and not (frac or mult) and "," not in int_part and 1900 <= shown <= 2100:
             skipped.append({"text": raw, "reason": "year"})
             continue

@@ -73,3 +73,10 @@ def test_the_standard_home_depth_passes():
     r = analyze(sample, save=False)
     out = verify("86% of the floor is within 36 feet of a window.", r)
     assert out["status"] == "success", out["values"]["rejected"]
+
+
+def test_the_buildings_own_id_and_street_number_are_not_facts():
+    work = {"building": {"id": "234004", "address": "1801 Smith St"}, "geometry": {"homes": 360}}
+    out = verify("Building 234004 at 1801 Smith St fits 360 homes.", work)
+    assert out["status"] == "success" and {s["text"] for s in out["values"]["skipped"]} == {"234004", "1801"}
+    assert verify("It costs $1801.", work)["status"] == "error"           # a money figure is still checked
