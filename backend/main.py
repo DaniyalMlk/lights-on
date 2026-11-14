@@ -138,7 +138,8 @@ def building_labels(building_id: str):
         if model:
             out = floor_labels(model, b.get("typical_floor_sf"))
             if out["labels"]:
-                return {"model_id": scan["model_id"], "frame": "Matterport model coordinates, metres, z up", **out}
+                return {"model_id": scan["model_id"], "frame": "Matterport model coordinates, metres, z up",
+                        "panos": [{"id": p["id"], "position": p["position"]} for p in model.get("panoLocations", []) if p.get("id") and p.get("position")], **out}
             reason = out["reason"]
     return {"model_id": None, "labels": [], "reason": reason}
 

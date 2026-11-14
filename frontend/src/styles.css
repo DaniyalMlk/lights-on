@@ -72,3 +72,19 @@ button:focus-visible, input:focus-visible { outline: 2px solid #ffcf78; outline-
 .gain { background-image: linear-gradient(#84cca2,#84cca2); background-position: left bottom; }
 .rejection { border-left: 3px solid #ef8e83; }
 .proof-case { border-bottom: 1px solid #353b46; padding-bottom: 12px; }
+
+.reset, .panel button { font: inherit; border: 1px solid #505967; border-radius: 5px; padding: 6px 10px; background: #222936; color: #fff; cursor: pointer; }
+.reset { align-self: flex-start; }
+.panel button[aria-pressed=true] { color: #ffe1a0; border-color: #eab65b; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { border: 1px solid #454d5c; border-radius: 4px; padding: 4px 6px; }
+.panel details { margin: 12px 0; }
+.panel summary { cursor: pointer; padding: 6px 0; }
+.panel textarea { font: inherit; width: 100%; min-height: 7em; background: #151920; color: #edf0f5; border: 1px solid #636d7b; padding: 8px; }
+.panel iframe { display: block; border: 0; width: 100%; aspect-ratio: 4/3; }
+.scan-label { border-left: 3px solid white; padding-left: 8px; }
+.scan-label.measured { border-color: #ffc857; }
+.scan-label.checked { border-color: #83dba7; }
+.scan-label.assumed { border-color: #999; }
+.red { color: #ff988c; }
+.amber { color: #ffcf78; }

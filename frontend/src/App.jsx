@@ -20,6 +20,7 @@ function evaluate(p, incentive) {
 const TABS = ["Building", "Agent", "Proof"];
 
 export default function App() {
+  const [resetKey, setResetKey] = useState(0);
   const [buildings, setBuildings] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [incentive, setIncentive] = useState(0);
@@ -27,12 +28,21 @@ export default function App() {
   const [tab, setTab] = useState("Building");
 
   const [loadError, setLoadError] = useState(false);
+  function restoreView(collection) {
+    const query = new URLSearchParams(window.location.search);
+    const id = query.get("demo");
+    setSelectedId(collection?.features.some(f => f.properties.id === id) ? id : null);
+    setTab(TABS.includes(query.get("tab")) ? query.get("tab") : "Building");
+    setIncentive(0);
+    setVacancyGate(35);
+    setResetKey(n => n + 1);
+  }
   function selectBuilding(id) { setSelectedId(id); setTab("Building"); }
   useEffect(() => {
     fetch("/api/buildings").then((r) => {
       if (!r.ok) throw new Error();
       return r.json();
-    }).then(setBuildings).catch(() => setLoadError(true));
+    }).then(collection => { setBuildings(collection); restoreView(collection); }).catch(() => setLoadError(true));
   }, []);
 
   // Recompute colors for the current slider values
@@ -62,8 +72,9 @@ export default function App() {
 
       <div className="layout">
         <div className="map-wrap">
-          {mapData && <CityMap data={mapData} selectedId={selectedId} onSelect={selectBuilding} />}
+          {mapData && <CityMap key={resetKey} data={mapData} selectedId={selectedId} onSelect={selectBuilding} />}
           <div className="controls">
+            <button className="reset" onClick={() => restoreView(buildings)}>Reset view</button>
             <div className="map-key"><span>Gold: covers basis</span> · Navy: below basis or unavailable · Gray: filtered or indicative location</div>
             <label>
               Incentive: ${incentive}/SF
@@ -79,7 +90,7 @@ export default function App() {
           </div>
         </div>
 
-        <aside className="side">
+        <aside className="side" key={resetKey}>
           <BuildingList features={mapData?.features} selectedId={selectedId} onSelect={selectBuilding} error={loadError} />
           <nav className="tabs">
             {TABS.map((t) => (

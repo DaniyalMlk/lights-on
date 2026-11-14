@@ -49,26 +49,39 @@ export default function AgentPanel({ buildingId }) {
   const [running, setRunning] = useState(false);
   const source = useRef(null);
 
-  useEffect(() => () => source.current?.close(), []);
+  const timer = useRef(null);
+  const [notice, setNotice] = useState("");
+  useEffect(() => () => { clearTimeout(timer.current); source.current?.close(); }, []);
+  function fallback(reason) {
+    clearTimeout(timer.current);
+    source.current?.close();
+    setRunning(false);
+    setEvents([]);
+    setNotice(reason);
+  }
 
   function run() {
     source.current?.close();
     setEvents([]);
     setRunning(true);
+    setNotice("");
+    timer.current = setTimeout(() => fallback("Live run exceeded 90 seconds."), 90000);
     const query = buildingId ? `?building_id=${encodeURIComponent(buildingId)}` : "";
     source.current = new EventSource(`/api/agent/stream${query}`);
     source.current.onmessage = (msg) => {
       const e = JSON.parse(msg.data);
+      if (["fallback","timeout","error"].includes(e.type)) {
+        fallback("Live run unavailable.");
+        return;
+      }
       setEvents((prev) => [...prev, e]);
       if (e.type === "done" || e.type === "error") {
+        clearTimeout(timer.current);
         source.current.close();
         setRunning(false);
       }
     };
-    source.current.onerror = () => {
-      source.current.close();
-      setRunning(false);
-    };
+    source.current.onerror = () => fallback("Connection interrupted.");
   }
 
   const rejectionIndex = record?.events.findIndex(row => row.type === "verifier_rejection") ?? -1;
@@ -78,12 +91,13 @@ export default function AgentPanel({ buildingId }) {
         The agent plans the job, hands it to the screener, analyst, writer and verifier, and every number it writes
         is checked against the saved tool outputs.
       </p>
+      {notice && <p role="status">{notice} {record ? "Showing the saved recording." : "Recording unavailable."}</p>}
       {buildingId && !events.length && !running && (record ?
         <><p className="verdict">Recorded run from {record.recorded_at} · {record.model}</p>
           <div className="trace">{record.events.map((e,i) => <EventRow key={i} e={e} afterRejection={rejectionIndex >= 0 && i > rejectionIndex}/>)}</div></> :
         <p>{record === undefined ? "Loading recording…" : "No recorded run available for this building."}</p>)}
-      <button className="primary" onClick={run} disabled={running}>
-        {running ? "Running…" : buildingId ? `Run on ${buildingId}` : "Run on downtown"}
+      <button className="primary" onClick={run} disabled={running || !buildingId}>
+        {running ? "Running…" : "Run live"}
       </button>
       <div className="trace">{events.map((e, i) => <EventRow key={i} e={e} />)}</div>
     </div>

@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+import ScanPanel from "./ScanPanel.jsx";
+import StudyDetails from "./StudyDetails.jsx";
+
 const money = (x) => (x == null ? "n/a" : `${x < 0 ? "−" : ""}$${Math.abs(x / 1e6).toFixed(1)}M`);
 const tonnes = (x) => `${Math.round(x).toLocaleString()} t`;
 const perSf = (x) => `${x >= 0 ? "+" : "−"}$${Math.abs(x).toFixed(0)}/SF`;
@@ -42,6 +45,7 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
       <img className="plate" src={`/api/buildings/${encodeURIComponent(buildingId)}/plate.svg?depth=${depth}`} alt={`Indicative floor plate at ${depth} ft`} />
       <p className="muted small">Gold · apartments / gray · corridor / black · dark zone / charcoal · core / slate · storage</p>
       <p className="muted small">Geometry: {building.footprint_source || "building footprint"}. Assumption: centered core occupies 18% of the floor plate.</p>
+      <ScanPanel building={building} />
       <h3>Homes (estimate)</h3>
       <table>
         <thead><tr><th>Unit depth</th><th>Per floor</th><th>Total</th></tr></thead>
@@ -87,6 +91,7 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
         of upfront embodied carbon compared with building new.
       </p>
       <p className="muted small">Literature range (50–75% of new-build embodied carbon), not a measured saving for this building.</p>
+      <StudyDetails data={data} depth={depth} />
     </div>
   );
 }
