@@ -81,6 +81,10 @@ small { font-size: inherit; }
 .map-tools button:active { transform: scale(0.94); }
 .map-tools svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .map-tools .orbit { padding: 0 13px 0 10px; }
+/* What a drag does: move the map, or turn it like a 3D model */
+.drag-mode { display: flex; gap: 2px; margin-right: 4px; padding-right: 6px; border-right: 1px solid var(--line); }
+.drag-mode button { padding: 0 12px; }
+.drag-mode button[aria-pressed="true"] { background: var(--surface-2); color: var(--lamp); }
 .map-tools .orbit[aria-pressed="true"] { background: var(--lamp); color: var(--lamp-ink); }
 .map-tools .orbit[aria-pressed="true"] svg { animation: spin 2.4s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -138,6 +142,8 @@ input[type="range"].quiet::-webkit-slider-thumb { width: 14px; height: 14px; mar
 .pin[data-active="true"] .pin-name, .pin[data-active="true"] .pin-homes { display: inline; }
 .pin[data-active="true"] .pin-homes { padding-left: 7px; border-left: 1px solid rgba(16, 24, 38, 0.2); font-weight: 500; }
 .pin[data-active="true"][data-lit="true"] { background: #ffd47e; }
+/* The selected tower carries its floor on the roof and its name in the panel: its pin would only sit in the way */
+.pin[aria-pressed="true"] { visibility: hidden; }
 @keyframes pin-in { from { opacity: 0; } to { opacity: 1; } }
 .maplibregl-ctrl-top-right { top: 54px !important; right: calc(var(--gutter) - 6px) !important; }
 .maplibregl-ctrl-attrib.maplibregl-compact { background: var(--glass) !important; color: var(--text-3); }
@@ -148,7 +154,17 @@ input[type="range"].quiet::-webkit-slider-thumb { width: 14px; height: 14px; mar
 .tour { position: absolute; z-index: 4; top: 12px; left: 12px; bottom: 12px; right: calc(var(--gutter) - 2px); border-radius: 22px; overflow: hidden; background: #0b111c; box-shadow: var(--float); animation: tour-in 320ms var(--ease); }
 .tour iframe { display: block; width: 100%; height: 100%; border: 0; }
 .tour-bar { position: absolute; inset: 12px; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; pointer-events: none; }
-.tour-bar p { align-self: center; padding: 7px 13px; border-radius: 999px; background: var(--glass); color: var(--text-2); font-size: 12.5px; box-shadow: 0 0 0 1px var(--line); }
+.tour-top { align-self: stretch; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.tour-top .segmented { margin-right: auto; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 0 0 1px var(--line); }
+.tour-top .segmented button { padding: 6px 14px; }
+.tour-foot { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tour-foot p { padding: 7px 13px; border-radius: 999px; background: var(--glass); color: var(--text-2); font-size: 12.5px; box-shadow: 0 0 0 1px var(--line); }
+.tour-foot .fine { color: var(--text-3); font-size: 12px; }
+.tour-steps { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 0 0 1px var(--line); }
+.tour-steps button { display: flex; align-items: center; justify-content: center; width: 38px; height: 34px; border: 0; border-radius: 999px; background: none; color: var(--text-2); transition: background 160ms var(--ease), color 160ms var(--ease), transform 120ms var(--ease); }
+.tour-steps button:hover { background: var(--surface-2); color: var(--text); }
+.tour-steps button:active { transform: scale(0.94); }
+.tour-steps svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .tour-bar button { pointer-events: auto; }
 @keyframes tour-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
 

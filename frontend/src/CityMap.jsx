@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AttributionControl, LngLatBounds, Map as MapLibreMap, Marker, setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import { bestTurn, planDuration, planFeatures } from "./plan3d.js";
 
 // Let Vite bundle MapLibre's web worker so it works in dev and in the production build
 setWorkerUrl(workerUrl);
@@ -96,8 +97,6 @@ function windowImage({ wall, panes }) {
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
 
-// What the map draws this frame. Each tower is two stacked pieces: a lit part from the ground up to lit_h,
-// and a dark part above it. progress (0..1 per tower) is how far up the lights have climbed.
 function frame(data, progress, activeIds) {
   return {
     type: "FeatureCollection",
@@ -138,15 +137,51 @@ function glowPoints(data, progress) {
   };
 }
 
-// Drag turns the view around its middle, like turning a 3D model in your hand: left-right spins it,
-// up-down tilts it. Shift + drag (or right-drag, or a finger) moves the map instead.
-function orbitByDrag(map, onGrab) {
+// --- Camera ---------------------------------------------------------------------------------------------
+// MapLibre aims its camera at a point on the street. A tower's typical floor is drawn on its roof, so we often
+// want to look at a point up in the air. The trick: aim at the street point that lies behind the roof on the
+// same line of sight, and stand further back by the extra distance. A "view" below is what we look at:
+// { focus: {lng, lat}, height (metres above the street), metersPerPixel (at the focus), pitch, bearing }.
+const RAD = Math.PI / 180;
+const metersPerPixelAt = (zoom, lat) => (40075016 * Math.cos(lat * RAD)) / (512 * 2 ** zoom);
+
+// How far behind the focus the street point lies (metres east and north), and how many extra metres per pixel
+// the longer distance costs. The camera sits 1.5 screen heights from what it aims at (MapLibre's field of view).
+function sightLine(map, height, pitch, bearing) {
+  const back = height * Math.tan(pitch * RAD);
+  return { east: back * Math.sin(bearing * RAD), north: back * Math.cos(bearing * RAD),
+           extra: height / Math.cos(pitch * RAD) / (1.5 * map.getContainer().clientHeight) };
+}
+
+function aimAt(map, { focus, height, metersPerPixel, pitch, bearing }) {
+  const line = sightLine(map, height, pitch, bearing);
+  const perLon = 111320 * Math.cos(focus.lat * RAD);
+  map.jumpTo({ center: [focus.lng + line.east / perLon, focus.lat + line.north / 110540], pitch, bearing,
+               zoom: Math.log2(metersPerPixelAt(0, focus.lat) / (metersPerPixel + line.extra)) });
+}
+
+// The reverse: what the camera is looking at right now, at this height
+function viewAt(map, height) {
+  const center = map.getCenter(), pitch = map.getPitch(), bearing = map.getBearing();
+  const line = sightLine(map, height, pitch, bearing);
+  const perLon = 111320 * Math.cos(center.lat * RAD);
+  return { focus: { lng: center.lng - line.east / perLon, lat: center.lat - line.north / 110540 }, height, pitch, bearing,
+           metersPerPixel: Math.max(0.03, metersPerPixelAt(map.getZoom(), center.lat) - line.extra) };
+}
+
+// Dragging and scrolling are ours, so they can work at roof height (height() is how high the camera is aiming).
+// Drag: in "move" mode it slides the map, like any map; in "turn" mode it turns the view around its middle,
+// like a 3D model in your hand (left-right spins, up-down tilts). Shift + drag or right-drag does the other
+// one; a finger always moves. Scroll: on the street MapLibre zooms towards the pointer; up at a roof we zoom
+// towards the middle of the view, because MapLibre can only zoom towards the street behind it.
+function takeOverGestures(map, mode, height, onGrab) {
   const surface = map.getCanvasContainer();
   let drag = null;
   surface.addEventListener("contextmenu", (e) => e.preventDefault());
   surface.addEventListener("pointerdown", (e) => {
     if (!e.isPrimary || e.target.closest(".pin")) return;
-    drag = { x: e.clientX, y: e.clientY, move: e.pointerType !== "mouse" || e.button === 2 || e.shiftKey };
+    const other = e.button === 2 || e.shiftKey;
+    drag = { x: e.clientX, y: e.clientY, move: e.pointerType !== "mouse" || (mode() === "move") !== other };
     try { surface.setPointerCapture(e.pointerId); } catch { /* the drag still works inside the map */ }
     onGrab();
   });
@@ -155,16 +190,48 @@ function orbitByDrag(map, onGrab) {
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     drag.x = e.clientX;
     drag.y = e.clientY;
-    if (drag.move) map.panBy([-dx, -dy], { animate: false });
-    else map.jumpTo({ bearing: map.getBearing() + dx * 0.5,
-                      pitch: Math.max(0, Math.min(MAX_PITCH, map.getPitch() - dy * 0.35)) });
+    const view = viewAt(map, height());
+    if (!drag.move) {
+      aimAt(map, { ...view, bearing: view.bearing + dx * 0.5, pitch: Math.max(0, Math.min(MAX_PITCH, view.pitch - dy * 0.35)) });
+      return;
+    }
+    // One pixel sideways is metersPerPixel; one pixel up the screen reaches further, the flatter we look
+    const b = view.bearing * RAD, side = dx * view.metersPerPixel;
+    const ahead = (dy * view.metersPerPixel) / Math.max(0.25, Math.cos(view.pitch * RAD));
+    const perLon = 111320 * Math.cos(view.focus.lat * RAD);
+    aimAt(map, { ...view, focus: { lng: view.focus.lng + (ahead * Math.sin(b) - side * Math.cos(b)) / perLon,
+                                   lat: view.focus.lat + (ahead * Math.cos(b) + side * Math.sin(b)) / 110540 } });
   });
   const release = (e) => { if (e.isPrimary) drag = null; };
   surface.addEventListener("pointerup", release);
   surface.addEventListener("pointercancel", release);
+  // Listening on the way down (capture) lets us keep the scroll from MapLibre's own zoom when we handle it
+  map.getContainer().addEventListener("wheel", (e) => {
+    if (!height() || !surface.contains(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onGrab();
+    // A mouse wheel notch, a two-finger scroll and a pinch report very different numbers
+    const levels = -e.deltaY * (e.deltaMode === 1 ? 0.06 : e.ctrlKey ? 0.012 : 0.0035);
+    const view = viewAt(map, height());
+    aimAt(map, { ...view, metersPerPixel: Math.max(0.04, Math.min(30, view.metersPerPixel / 2 ** Math.max(-0.6, Math.min(0.6, levels)))) });
+  }, { capture: true, passive: false });
 }
 
-export default function CityMap({ data, selectedId, hoveredId, rightInset, bottomInset, onSelect, onHover, onGrab }) {
+// The view for one tower: it looks at the roof, where the typical floor is drawn, from close enough that the
+// floor fills a little under half of the map that the side panel leaves visible.
+function towerView(map, feature, rightInset) {
+  const box = new LngLatBounds();
+  for (const point of feature.geometry.coordinates[0]) box.extend(point);
+  const at = box.getCenter();
+  const span = Math.max((box.getEast() - box.getWest()) * 111320 * Math.cos(at.lat * RAD), (box.getNorth() - box.getSouth()) * 110540);
+  const metersPerPixel = span / (0.46 * (map.getContainer().clientWidth - rightInset));
+  return { focus: { lng: at.lng, lat: at.lat }, height: (feature.properties.height_ft ?? 0) * FEET_TO_M, pitch: 52,
+           metersPerPixel: Math.max(metersPerPixelAt(19.4, at.lat), Math.min(metersPerPixelAt(16.8, at.lat), metersPerPixel)) };
+}
+
+export default function CityMap({ data, selectedId, hoveredId, rightInset, bottomInset, mode, plate, marks, focus,
+                                  onSelect, onHover, onGrab, onMode, onMark }) {
   const container = useRef(null);
   const map = useRef(null);
   const pins = useRef(new Map());
@@ -172,8 +239,42 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
   const [ready, setReady] = useState(false);
   const [orbiting, setOrbiting] = useState(false);
   const flying = useRef(false);
+  const gliding = useRef(0);                       // the running camera move, see glide
+  const aim = useRef(0);                           // how high above the street the camera is aiming, metres
   const latest = useRef({});
-  latest.current = { data, onSelect, onHover, onGrab, bottomInset, active: [selectedId, hoveredId].filter(Boolean) };
+  const planClock = useRef({ plate: null, plateAt: 0, marks: null, marksAt: 0 });
+  latest.current = { data, mode, onSelect, onHover, onGrab, onMark, rightInset, bottomInset,
+                     active: [selectedId, hoveredId].filter(Boolean) };
+
+  // Move the camera to a new view, step by step (MapLibre's own flyTo only knows views at street level)
+  function glide(to, ms) {
+    const instance = map.current;
+    if (!instance || !to) return;
+    halt();
+    instance.stop();
+    const from = viewAt(instance, aim.current);
+    const turn = ((to.bearing - from.bearing + 540) % 360) - 180;          // the short way round
+    const start = performance.now();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) ms = 0;
+    flying.current = true;
+    function step(now) {
+      const t = ms ? Math.min(1, (now - start) / ms) : 1;
+      const k = t * t * (3 - 2 * t);                                       // ease in and out
+      const mix = (a, b) => a + (b - a) * k;
+      aim.current = mix(from.height, to.height);
+      aimAt(instance, { focus: { lng: mix(from.focus.lng, to.focus.lng), lat: mix(from.focus.lat, to.focus.lat) }, height: aim.current,
+                        metersPerPixel: from.metersPerPixel * (to.metersPerPixel / from.metersPerPixel) ** k,
+                        pitch: mix(from.pitch, to.pitch), bearing: from.bearing + turn * k });
+      if (t < 1) gliding.current = requestAnimationFrame(step);
+      else flying.current = false;
+    }
+    gliding.current = requestAnimationFrame(step);
+  }
+  // Someone grabbed the map: whatever camera move was running stops where it is
+  function halt() {
+    cancelAnimationFrame(gliding.current);
+    flying.current = false;
+  }
 
   function paint() {
     const instance = map.current;
@@ -201,10 +302,11 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
         ...CAMERA,
         attributionControl: false,
       });
-      instance.dragPan.disable();                        // dragging is ours: see orbitByDrag
+      instance.dragPan.disable();                        // dragging is ours: see takeOverGestures
       instance.scrollZoom.setWheelZoomRate(1 / 160);     // mouse wheel: about three times the default speed
       instance.scrollZoom.setZoomRate(1 / 40);           // trackpad: about twice the default speed
-      orbitByDrag(instance, () => { setOrbiting(false); latest.current.onGrab?.(); });
+      takeOverGestures(instance, () => latest.current.mode, () => aim.current,
+                       () => { halt(); setOrbiting(false); latest.current.onGrab?.(); });
       instance.addControl(new AttributionControl({ compact: true }), "top-right");   // the dock owns the bottom edge
       map.current = instance;
       instance.once("load", () => {
@@ -214,12 +316,13 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
         } catch { /* older renderer: no sky, same map */ }
         addLayers(instance, latest, pins.current);
         // Grabbing the map takes over from the automatic orbit
-        for (const event of ["mousedown", "touchstart", "wheel"]) instance.on(event, () => setOrbiting(false));
+        for (const event of ["mousedown", "touchstart", "wheel"]) instance.on(event, () => { halt(); setOrbiting(false); });
         setReady(true);
       });
     });
     return () => {
       cancelled = true;
+      cancelAnimationFrame(gliding.current);
       instance?.remove();
       map.current = null;
       pins.current.clear();
@@ -231,7 +334,7 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
     const instance = map.current;
     if (!ready || !instance) return;
     instance.setPadding({ top: 0, bottom: 0, left: 0, right: rightInset });
-    if (!latest.current.active.length) fitAll(instance, latest.current, 0);
+    if (!latest.current.active.length) glide(overview(instance, latest.current), 0);
   }, [rightInset, bottomInset, ready]);
 
   // Lights climb a tower when it starts to pay, and go out when it stops. Pins follow at once:
@@ -283,18 +386,55 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
   useEffect(() => {
     const instance = map.current;
     if (!ready || !instance) return;
-    flying.current = true;
-    instance.once("moveend", () => { flying.current = false; });
     if (!selectedId) {
       setOrbiting(false);
-      fitAll(instance, latest.current, 900);
+      glide(overview(instance, latest.current), 1000);
       return;
     }
     const feature = latest.current.data.features.find(f => f.properties.id === selectedId);
-    if (!feature) return;
-    instance.flyTo({ center: center(feature), zoom: 16.4, pitch: 64, bearing: instance.getBearing() + 35,
-                     duration: 1800, essential: true });
+    if (feature) glide({ ...towerView(instance, feature, latest.current.rightInset), bearing: instance.getBearing() + 35 }, 1700);
   }, [selectedId, ready]);
+
+  // With a tower selected, the city around it fades back so nothing stands in front of it
+  useEffect(() => {
+    const instance = map.current;
+    if (ready && instance?.getLayer("context-3d"))
+      instance.setPaintProperty("context-3d", "fill-extrusion-opacity", selectedId ? 0.25 : 0.92);
+  }, [selectedId, ready]);
+
+  // The selected tower's typical floor on its roof: apartments rise one by one, then a beacon for each label
+  useEffect(() => {
+    const instance = map.current;
+    if (!ready || !instance) return;
+    const feature = plate?.id === selectedId ? data.features.find(f => f.properties.id === selectedId) : null;
+    if (!feature) {
+      planClock.current = { plate: null, plateAt: 0, marks: null, marksAt: 0 };
+      instance.getSource("plan")?.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+    // Each thing rises once: the floor when it (or its unit depth) changes, the beacons when the labels arrive
+    const clock = planClock.current;
+    const now = performance.now();
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (clock.plate !== plate.key) { clock.plate = plate.key; clock.plateAt = now; }
+    const labelled = marks.length ? plate.id : null;
+    if (clock.marks !== labelled) { clock.marks = labelled; clock.marksAt = now; }
+
+    const origin = center(feature);
+    const scene = { plate, marks, focus: focus?.index ?? null, origin, turn: bestTurn(plate, feature.geometry.coordinates[0], origin),
+                    roof: (feature.properties.height_ft ?? 0) * FEET_TO_M };
+    const lasts = planDuration(plate);
+    const source = instance.getSource("plan");
+    if (still) { source?.setData(planFeatures(scene, Infinity, Infinity, 0)); return; }
+    let request = 0;
+    function tick(t) {
+      source?.setData(planFeatures(scene, t - clock.plateAt, t - clock.marksAt, t));
+      // Beacons keep breathing while they are shown; without labels the loop ends when the floor has risen
+      if (marks.length || t < clock.plateAt + lasts.plate) request = requestAnimationFrame(tick);
+    }
+    request = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(request);
+  }, [plate, marks, focus, selectedId, ready]);
 
   // Orbit: turn slowly around the middle of the view until someone grabs the map or presses the button again
   useEffect(() => {
@@ -303,7 +443,10 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
     let request = 0;
     let last = performance.now();
     function turn(now) {
-      if (!flying.current) instance.setBearing(instance.getBearing() + ((now - last) / 1000) * ORBIT_DEG_PER_S);
+      if (!flying.current) {
+        const view = viewAt(instance, aim.current);
+        aimAt(instance, { ...view, bearing: view.bearing + ((now - last) / 1000) * ORBIT_DEG_PER_S });
+      }
       last = now;
       request = requestAnimationFrame(turn);
     }
@@ -313,7 +456,9 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
 
   function zoomBy(step) {
     const instance = map.current;
-    if (instance) instance.easeTo({ zoom: instance.getZoom() + step, duration: 220 });
+    if (!instance) return;
+    const view = viewAt(instance, aim.current);
+    glide({ ...view, metersPerPixel: view.metersPerPixel / 2 ** step }, 220);
   }
 
   function resetCamera() {
@@ -321,14 +466,18 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
     if (!instance) return;
     setOrbiting(false);
     const feature = latest.current.data.features.find(f => f.properties.id === selectedId);
-    if (feature) instance.flyTo({ center: center(feature), zoom: 16.4, pitch: 64, bearing: CAMERA.bearing, duration: 900 });
-    else fitAll(instance, latest.current, 900);
+    glide(feature ? { ...towerView(instance, feature, latest.current.rightInset), bearing: CAMERA.bearing }
+                  : overview(instance, latest.current), 900);
   }
 
   return <>
     <div ref={container} className="map" />
     {!ready && <p className="map-loading" role="status">Loading downtown Houston…</p>}
     {ready && <div className="map-tools" role="group" aria-label="Map view">
+      <div className="drag-mode" role="group" aria-label="What dragging does">
+        <button aria-pressed={mode === "move"} onClick={() => onMode("move")} title="Dragging moves the map. Shift + drag turns it.">Move</button>
+        <button aria-pressed={mode === "turn"} onClick={() => onMode("turn")} title="Dragging turns the view, like a 3D model. Shift + drag moves it.">Turn</button>
+      </div>
       <button className="orbit" aria-pressed={orbiting} onClick={() => setOrbiting(!orbiting)}
               title="Turn slowly around the view by itself. Or just drag the map to turn it yourself.">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 10a6.5 6.5 0 1 1 2.2 4.9" /><path d="M3 15.5v-3.4h3.4" /></svg>
@@ -344,14 +493,16 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
   </>;
 }
 
-// All our towers in view, clear of the scenario card at the bottom (the panel on the right is map padding)
-function fitAll(map, { data, bottomInset }, duration) {
+// The view that shows all our towers, clear of the scenario card at the bottom (the panel on the right is map padding)
+function overview(map, { data, bottomInset }) {
   const bounds = new LngLatBounds();
   for (const feature of data.features)
     if (!feature.properties.map_only)
       for (const point of feature.geometry.coordinates[0]) bounds.extend(point);
-  if (!bounds.isEmpty())
-    map.fitBounds(bounds, { padding: { top: 70, bottom: bottomInset || 150, left: 24, right: 24 }, maxZoom: 16.4, ...CAMERA, duration });
+  const fit = bounds.isEmpty() ? null
+    : map.cameraForBounds(bounds, { padding: { top: 70, bottom: bottomInset || 150, left: 24, right: 24 }, maxZoom: 16.4, bearing: CAMERA.bearing });
+  return fit ? { focus: { lng: fit.center.lng, lat: fit.center.lat }, height: 0,
+                 metersPerPixel: metersPerPixelAt(fit.zoom, fit.center.lat), ...CAMERA } : null;
 }
 
 // Everything we draw on top of the basemap: the rest of downtown in 3D, then our towers and their pins
@@ -416,6 +567,23 @@ function addLayers(map, latest, pins) {
       "fill-extrusion-opacity": 1,
     },
   });
+  map.addSource("plan", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({
+    id: "plan-3d", type: "fill-extrusion", source: "plan",
+    paint: {
+      "fill-extrusion-color": ["get", "color"],
+      "fill-extrusion-base": ["get", "base"],
+      "fill-extrusion-height": ["get", "top"],
+      "fill-extrusion-opacity": 1,
+      "fill-extrusion-vertical-gradient": false,
+    },
+  });
+  // A label's beacon can be clicked: the panel opens that label, and the 3D tour flies to it if it is open
+  const markUnder = (e) => e.features.find(f => f.properties.mark != null)?.properties.mark;
+  map.on("click", "plan-3d", (e) => { const mark = markUnder(e); if (mark != null) latest.current.onMark?.(mark); });
+  map.on("mousemove", "plan-3d", (e) => { if (markUnder(e) != null) map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", "plan-3d", () => { map.getCanvas().style.cursor = ""; });
+
   for (const layer of ["towers-dark", "towers-lit"]) {
     map.on("click", layer, (e) => latest.current.onSelect(e.features[0].properties.id));
     map.on("mousemove", layer, (e) => {

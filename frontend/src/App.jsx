@@ -38,7 +38,11 @@ export default function App() {
   const [incentive, setIncentive] = useState(0);
   const [vacancyGate, setVacancyGate] = useState(35);
   const [touched, setTouched] = useState(false);          // the slider thumb pulses until first use
-  const [explored, setExplored] = useState(false);        // the "drag to turn" hint fades after the first drag
+  const [explored, setExplored] = useState(false);        // the drag hint fades after the first drag
+  const [mode, setMode] = useState("move");               // what a drag on the map does: move it or turn it
+  const [plate, setPlate] = useState(null);               // the selected tower's floor plate, for the 3D model
+  const [marks, setMarks] = useState([]);                 // where its floor labels sit on that plate
+  const [focus, setFocus] = useState(null);               // the label picked last: {index, n}
   const [loadError, setLoadError] = useState(false);
   const [proof, setProof] = useState(undefined);
   const [inset, setInset] = useState({ right: 0, bottom: 0 });   // how much of the map the floating panels cover
@@ -52,16 +56,25 @@ export default function App() {
     const known = collection?.features.some(f => f.properties.id === id);
     const wanted = query.get("tab");
     setSelectedId(known ? id : null);
+    setMode(known ? "turn" : "move");
     setView(wanted === "Proof" || wanted === "Validation" ? "validation" : known ? "building" : "list");
     setTab(wanted === "Agent" ? "Agent" : "Overview");
     setIncentive(0);
     setVacancyGate(35);
     setTouched(false);
   }
+  // One tower is something you turn around; the whole city is something you move across
   function selectBuilding(id) {
     setSelectedId(id);
+    if (id !== selectedId) { setPlate(null); setMarks([]); setFocus(null); setExplored(false); }
+    setMode(id ? "turn" : "move");
     setView(id ? "building" : "list");
     setTab("Overview");
+  }
+  // A floor label picked in the panel or on the tower: n changes every time, so the same one can be picked twice
+  function pickLabel(index) {
+    setTab("Overview");
+    setFocus(current => ({ index, n: (current?.n ?? 0) + 1 }));
   }
   function openValidation() {
     if (view !== "validation") backTo.current = selectedId ? "building" : "list";
@@ -124,7 +137,9 @@ export default function App() {
     <main className="stage">
       <section className="map-wrap" aria-label="Map of downtown Houston">
         {mapData && <CityMap data={mapData} selectedId={selectedId} hoveredId={hoveredId} rightInset={inset.right} bottomInset={inset.bottom}
-                             onSelect={selectBuilding} onHover={setHoveredId} onGrab={() => setExplored(true)} />}
+                             mode={mode} plate={plate} marks={marks} focus={focus}
+                             onSelect={selectBuilding} onHover={setHoveredId} onGrab={() => setExplored(true)}
+                             onMode={(next) => { setMode(next); setExplored(false); }} onMark={pickLabel} />}
 
         <header className="island">
           <a className="brand" href="/" aria-label="Lights On, start over"><WindowMark />Lights On</a>
@@ -144,7 +159,9 @@ export default function App() {
               <li className="dark">Not yet</li>
               <li className="off">Filtered out</li>
             </ul>
-            <p className="hint" data-seen={explored}>Drag to turn the city · Shift + drag to move · Scroll to zoom</p>
+            <p className="hint" data-seen={explored}>{mode === "move"
+              ? "Drag to move · Shift + drag to turn · Scroll to zoom"
+              : "Drag to turn · Shift + drag to move · Scroll to zoom"}</p>
           </div>
           <div className="scenario">
             <div className="control">
@@ -195,7 +212,8 @@ export default function App() {
               ? <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
               : tab === "Agent"
                 ? <AgentPanel key={selectedId} buildingId={selectedId} names={names} />
-                : <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive} />)}
+                : <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive}
+                                 focus={focus} onFocus={pickLabel} onPlate={setPlate} onMarks={setMarks} />)}
           </div>
         </>}
       </aside>

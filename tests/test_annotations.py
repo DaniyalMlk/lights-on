@@ -77,3 +77,30 @@ def test_labels_never_print_costar_floor_area():
     out = floor_labels(FLOOR, costar_floor)
     text = " ".join(label["title"] + " " + label["detail"] for label in out["labels"])
     assert out["labels"] and f"{costar_floor:,}" not in text and str(costar_floor) not in text
+
+
+def test_labels_know_where_they_sit_on_the_drawing():
+    """Each label also carries its spot on the floor plate drawing, inside the drawing's margins."""
+    out = floor_labels(FLOOR, FULL_FLOOR_SF)
+    width_ft, depth_ft = 60 * FT_PER_M, 30 * FT_PER_M
+    for label in out["labels"]:
+        assert 10 <= label["plan"]["x"] <= width_ft + 10 and 10 <= label["plan"]["y"] <= depth_ft + 10, label["title"]
+
+
+def test_a_scan_that_is_not_measured_still_offers_its_tour(monkeypatch):
+    """Tour only, no labels: and only for a scan filed under this building's id, never a neighbour's."""
+    building = {"id": "777", "lat": 29.7535, "lon": -95.3693, "typical_floor_sf": FULL_FLOOR_SF}
+    own = {"sid": "SUITE1", "name": "Suite 400", "costar_property_id": "777", "lat": "29.7535", "lon": "-95.3693",
+           "pano_count": "12", "room_count": "3"}
+    nearby = {"sid": "NEXTDOOR", "name": "Lobby", "costar_property_id": "999", "lat": "29.7536", "lon": "-95.3694",
+              "pano_count": "40", "room_count": "1"}
+    monkeypatch.setattr(main, "BUILDINGS", {"777": building})
+    monkeypatch.setattr(matterport, "load_floor", lambda model_id: None)          # nothing pulled, so nothing measured
+    client = TestClient(main.app)
+
+    monkeypatch.setattr(matterport, "load_index", lambda: [nearby, own])
+    out = client.get("/api/buildings/777/labels").json()
+    assert out["labels"] == [] and out["model_id"] is None and out["tour_model_id"] == "SUITE1"
+
+    monkeypatch.setattr(matterport, "load_index", lambda: [nearby])
+    assert client.get("/api/buildings/777/labels").json()["tour_model_id"] is None

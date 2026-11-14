@@ -104,10 +104,19 @@ def layout_units(plate: Polygon, units_band: BaseGeometry, depth: float, core: B
             "fallback_homes_per_floor": fallback}
 
 
+SVG_PAD_FT = 10      # blank margin around the plate in the drawing
+
+
+def plan_xy(x_ft: float, y_ft: float, plate: Polygon) -> tuple[float, float]:
+    """A point on the plate (feet) -> where it sits in the drawing made by render_svg (x right, y down)."""
+    minx, _, _, maxy = plate.bounds
+    return x_ft - minx + SVG_PAD_FT, maxy - y_ft + SVG_PAD_FT
+
+
 def render_svg(plate: Polygon, core: BaseGeometry, zones, units: list[dict], title: str = "") -> str:
     """Floor plate SVG: units warm ('lights on'), corridor grey, dark zone black, core charcoal."""
     minx, miny, maxx, maxy = plate.bounds
-    pad = 10
+    pad = SVG_PAD_FT
     w, h = maxx - minx + 2 * pad, maxy - miny + 2 * pad
 
     def path(g: BaseGeometry) -> str:

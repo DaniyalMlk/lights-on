@@ -4,6 +4,7 @@ import AnimatedNumber from "./AnimatedNumber.jsx";
 import ScanPanel from "./ScanPanel.jsx";
 import StudyDetails from "./StudyDetails.jsx";
 import { money, perSf, tonnes } from "./format.js";
+import { readPlate } from "./plan3d.js";
 
 const LABELS = { rent_mult: "Rent ±10%", free_weeks: "Free weeks", cap: "Cap rate ±0.5 pt", opex: "Opex ±5 pt", cost_mult: "Conversion cost" };
 const LEGEND = [["apartments", "Apartments"], ["corridor", "Corridor"], ["dark", "Dark zone"], ["core", "Core"], ["storage", "Storage"]];
@@ -29,8 +30,9 @@ function ResidualRange({ worst, base, high }) {
 // Apartment fills in the plate drawing (backend/tools/layout.py): 2BR, 1BR, studio
 const UNIT_FILLS = 'path[fill="#FFC857"], path[fill="#FFD98A"], path[fill="#FFE8B5"]';
 
-// The floor plate, drawn into the page so its apartments can switch on one after another around the floor
-function Plate({ buildingId, depth }) {
+// The floor plate, drawn into the page so its apartments can switch on one after another around the floor.
+// The same drawing is handed to the map (onPlate), which builds it in 3D on top of the tower.
+function Plate({ buildingId, depth, onPlate }) {
   const box = useRef(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -45,6 +47,7 @@ function Plate({ buildingId, depth }) {
           unit.style.setProperty("--i", i);
         });
         box.current?.replaceChildren(document.importNode(svg, true));
+        onPlate({ id: buildingId, key: `${buildingId}:${depth}`, ...readPlate(svg) });
       })
       .catch(() => { if (!controller.signal.aborted && box.current) box.current.textContent = "Floor plate unavailable."; });
     return () => controller.abort();
@@ -52,7 +55,7 @@ function Plate({ buildingId, depth }) {
   return <div ref={box} className="plate" />;
 }
 
-export default function BuildingPanel({ buildingId, selected, incentive }) {
+export default function BuildingPanel({ buildingId, selected, incentive, focus, onFocus, onPlate, onMarks }) {
   const [data, setData] = useState(null);
   const [depth, setDepth] = useState(36);
   const [error, setError] = useState(false);
@@ -110,15 +113,15 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
             <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>{d} ft</button>)}</div>
         </header>
         <div className="plate-frame">
-          <Plate buildingId={buildingId} depth={depth} />
+          <Plate buildingId={buildingId} depth={depth} onPlate={onPlate} />
           <ul className="plate-legend">{LEGEND.map(([key, name]) => <li key={key} className={key}>{name}</li>)}</ul>
         </div>
         <p className="plate-count"><b><AnimatedNumber value={depths[depth].homes_per_floor} /></b> homes a floor ·{" "}
           <b><AnimatedNumber value={depths[depth].homes} /></b> in the building</p>
-        <p className="fine">Bedrooms need windows. Deeper than {depth} ft stays dark.</p>
+        <p className="fine">Bedrooms need windows. Deeper than {depth} ft stays dark. The same floor stands on the tower in the map.</p>
       </section>
 
-      <ScanPanel building={building} />
+      <ScanPanel building={building} focus={focus} onFocus={onFocus} onMarks={onMarks} />
 
       {econ ? (
         <section className={`block pays ${selected?.lit ? "lit" : ""}`}>

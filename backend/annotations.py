@@ -16,7 +16,7 @@ from shapely.geometry.polygon import orient
 from backend import config as C
 from backend.matterport import floor_outline
 from backend.tools.geometry import analyze_plate
-from backend.tools.layout import layout_units
+from backend.tools.layout import layout_units, plan_xy
 
 FT_PER_M = 3.28084
 MIN_COVERAGE = 0.85          # a scan this much smaller than the typical floor is a suite, not the whole floor
@@ -30,6 +30,12 @@ def _largest(geom):
 def _position(point_ft, height_m: float) -> dict:
     """A point on our plan (feet) back in the scan's frame: metres, z up."""
     return {"x": round(point_ft.x / FT_PER_M, 2), "y": round(point_ft.y / FT_PER_M, 2), "z": round(height_m, 2)}
+
+
+def _spot(point_ft, height_m: float, plate) -> dict:
+    """Where a label goes: in the 3D tour (position) and on the floor plate drawing (plan, feet)."""
+    x, y = plan_xy(point_ft.x, point_ft.y, plate)
+    return {"position": _position(point_ft, height_m), "plan": {"x": round(x, 1), "y": round(y, 1)}}
 
 
 def floor_labels(model: dict, typical_floor_sf: float | None = None) -> dict:
@@ -58,33 +64,33 @@ def floor_labels(model: dict, typical_floor_sf: float | None = None) -> dict:
         "kind": "measured",
         "title": f"Within {C.BASE_DEPTH_FT} ft of a window: {base.daylight_share:.0%} of the floor",
         "detail": "Measured from the scan's walls. The scan doesn't mark windows, so the whole facade counts as glazed.",
-        "position": _position(window_spot.representative_point(), height_m),
+        **_spot(window_spot.representative_point(), height_m, plate),
     }]
     if base.dark_sf >= 1:
         labels.append({
             "kind": "measured",
             "title": f"Dark zone: {base.dark_sf:,.0f} sf",
             "detail": f"More than {C.BASE_DEPTH_FT} ft from any window, outside the corridor and core: no bedrooms here.",
-            "position": _position(_largest(base.dark).representative_point(), height_m),
+            **_spot(_largest(base.dark).representative_point(), height_m, plate),
         })
     labels.append({
         "kind": "assumed",
         "title": "Core: assumed, not in the scan",
         "detail": f"Elevators and stairs aren't in the scan's walls. We assume a centered core of "
                   f"{C.CORE_SHARE:.0%} of the floor; a person should confirm it.",
-        "position": _position(geo["core"].centroid, height_m),
+        **_spot(geo["core"].centroid, height_m, plate),
     })
     labels.append({
         "kind": "checked" if coverage is not None else "measured",
         "title": f"Floor: {plate.area:,.0f} sf inside the walls",
         "detail": (f"{coverage:.0%} of the typical floor in CoStar, so the scan covers the whole floor."
                    if coverage is not None else "Measured from the scan. No second source to compare with."),
-        "position": _position(_largest(base.corridor).representative_point(), height_m),
+        **_spot(_largest(base.corridor).representative_point(), height_m, plate),
     })
     labels.append({
         "kind": "estimate",
         "title": f"About {layout['homes_per_floor']} homes fit on this floor",
         "detail": f"Indicative layout at {C.BASE_DEPTH_FT} ft unit depth from the scan's outline: a screening estimate, not a design.",
-        "position": _position(homes_spot.representative_point(), height_m),
+        **_spot(homes_spot.representative_point(), height_m, plate),
     })
     return {"labels": labels, "coverage": coverage, "reason": None}

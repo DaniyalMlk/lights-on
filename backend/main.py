@@ -147,7 +147,8 @@ def building_labels(building_id: str):
         raise HTTPException(404, f"Unknown building {building_id}")
     b = BUILDINGS[building_id]
     reason = "no full-floor Matterport scan saved for this building"
-    for scan in matterport.scans_for(b, matterport.load_index()):
+    scans = [] if b.get("synthetic") else matterport.scans_for(b, matterport.load_index())
+    for scan in scans:
         model = matterport.load_floor(scan["model_id"]) if scan["full_floor"] else None
         if model:
             out = floor_labels(model, b.get("typical_floor_sf"))
@@ -155,7 +156,12 @@ def building_labels(building_id: str):
                 return {"model_id": scan["model_id"], "frame": "Matterport model coordinates, metres, z up",
                         "panos": [{"id": p["id"], "position": p["position"]} for p in model.get("panoLocations", []) if p.get("id") and p.get("position")], **out}
             reason = out["reason"]
-    return {"model_id": None, "labels": [], "reason": reason}
+    # No measured floor, but the building may still have a tour to walk through. Only scans filed under this
+    # building's own CoStar id count: a scan that is merely nearby could be the tower next door.
+    tour = next((s for s in scans if s["matched_by"] == "costar_id"), None)
+    return {"model_id": None, "labels": [], "reason": reason,
+            "tour_model_id": tour["model_id"] if tour else None,
+            "tour_full_floor": bool(tour and tour["full_floor"])}
 
 
 @app.get("/api/config")
