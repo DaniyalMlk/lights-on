@@ -21,8 +21,10 @@ Public notes only. Anything that names CoStar columns, record IDs or values stay
 |---|---|
 | Do scans of downtown office floors exist? | **Yes.** Several full office floors in at least three downtown towers, plus scans of apartments in an already-converted tower (useful for validation). |
 | Do our validation buildings have scans? | Elev8 (1801 Smith): yes, converted units. 1415 Louisiana: a few rooms, no full floor. One City Centre (1021 Main) and 708 Main: no. |
-| Can Matterport replace the assumed core? | Likely, for scanned floors: rooms carry labels and areas, and the wall graph gives the plan. To check on the first real pull. |
-| CoStar fields (stories, RBA, floor SF, vacancy, rent, value) | Pending: the kit needs the zip password. |
+| Can Matterport replace the assumed core? | **Not on the first full floor we pulled.** The walls close into a clean outline that matches the typical floor, so the scan gives the real **plate**. The core isn't in it: the floor is one open room and its voids are column-sized. We keep the assumed centered core (18%) unless another scan shows core walls (`backend/tools/matterport_plan.py` decides). |
+| CoStar fields (stories, RBA, floor SF, vacancy, rent, value) | **Yes** for stories, rentable area and typical floor size. Vacancy is derived from current tenancies and availability from lease listings. Apartment rents come from apartment listings near the building. The reference value is an asking price, else the last recorded sale; there is no assessed value. |
+| Are all four validation buildings in the data? | **No.** 1801 Smith and 1415 Louisiana are. One City Centre (1021 Main) and 708 Main are not: see the change log in `docs/preregistration.md`. |
+| Real footprints | **Not yet.** Every building has a square stand-in sized to its typical floor. A building with a saved full-floor scan uses the scanned plate instead. Vexcel footprints are still pending. |
 | Vexcel footprint polygon + height | Pending: the building/parcel endpoint is in Vexcel's own quickstart. |
 | What can appear in the public repo / video / Devpost? | Asked CoStar (terms section 3.2 forbids sponsor data and schemas in public demos and open-source repos). |
 

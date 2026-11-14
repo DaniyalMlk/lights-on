@@ -1,6 +1,8 @@
 """Pre-registered checks against real Houston buildings (docs/preregistration.md).
 
 Cases are matched to our data by address. Ground truth is written here BEFORE running.
+A building that isn't in our data can still be checked on published dimensions: give the case a
+"public_plate" (width, length, stories, a label and the source). Its result carries that label.
 Run:  python -m scripts.run_validation
 """
 from __future__ import annotations
@@ -8,24 +10,32 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 
+from pyproj import Transformer
 from shapely.geometry import box
 
 from backend import config as C
 from backend.pipeline import WORK_DIR, analyze
+from backend.tools.geo import HOUSTON_EPSG, to_feet, to_lonlat
 
 CASES = [
     {"case": "1801 Smith (Elev8)", "address": "1801 Smith", "role": "development check, not a holdout",
      "truth_homes": 372, "residential_floors": None, "source": "HAR listing: 372 units"},
-    {"case": "One City Centre", "address": "1021 Main", "role": "planned program, not built yet",
-     "truth_homes": 460, "residential_floors": 23, "source": "TDLR TABS2025025699: 460 apartments on levels 7-29"},
-    {"case": "708 Main", "address": "708 Main", "role": "AECOM 2023 deep dive",
+    # Not in our CoStar data, so it runs on published dimensions: a 90 x 233 ft rectangle (AECOM's 21,000 SF
+    # typical floor and 90 ft minimum depth) with the assumed centered core, on the 23 residential floors as filed.
+    {"case": "One City Centre", "address": "1021 Main",
+     "role": "planned program, not built yet; inputs: AECOM, public numbers, not CoStar",
+     "truth_homes": 460, "residential_floors": 23, "source": "TDLR TABS2025025699: 460 apartments on levels 7-29",
+     "public_plate": {"width_ft": 90, "length_ft": 233, "stories": 29, "label": "AECOM, public numbers, not CoStar",
+                      "source": "AECOM 2023 study p. 81: 21,000 SF typical floor, 90 ft minimum depth"},
+     "expect_deep_plate": True},
+    {"case": "708 Main", "address": "708 Main", "role": "AECOM 2023 deep dive; dropped: not in our data",
      "truth_homes": None, "residential_floors": None, "source": "AECOM Downtown Houston study (direction only)"},
-    {"case": "1415 Louisiana", "address": "1415 Louisiana", "role": "AECOM 2023 deep dive",
+    {"case": "1415 Louisiana", "address": "1415 Louisiana", "role": "AECOM 2023 deep dive; described, not scored",
      "truth_homes": None, "residential_floors": None, "source": "AECOM Downtown Houston study (direction only)"},
 ]
 TOLERANCE = 0.15
+DOWNTOWN_LONLAT = (-95.3698, 29.7604)     # where a hand-entered plate is placed; only its shape matters
 
 
 def params_version() -> str:
@@ -39,28 +49,48 @@ def find_building(buildings: dict, address: str) -> dict | None:
     return next((b for b in buildings.values() if needle in str(b.get("address", "")).lower()), None)
 
 
+def public_building(case: dict) -> dict:
+    """A record for a building that isn't in our data: a rectangular floor from published dimensions.
+
+    It has no rents, vacancy or value, so only the geometry and the home count mean anything.
+    """
+    p = case["public_plate"]
+    x, y = Transformer.from_crs(4326, HOUSTON_EPSG, always_xy=True).transform(*DOWNTOWN_LONLAT)
+    plate = box(x, y, x + p["length_ft"], y + p["width_ft"])
+    return {"id": "public-" + case["address"].lower().replace(" ", "-"), "name": case["case"],
+            "address": case["address"], "stories": p["stories"], "typical_floor_sf": p["width_ft"] * p["length_ft"],
+            "footprint": to_lonlat(plate),
+            "footprint_source": f"a {p['width_ft']} x {p['length_ft']} ft rectangle: {p['label']} ({p['source']})"}
+
+
 def check_case(case: dict, buildings: dict) -> dict:
     b = find_building(buildings, case["address"])
     row = {k: case[k] for k in ("case", "role", "source")}
+    inputs = "our data"
+    if not b and case.get("public_plate"):
+        b, inputs = public_building(case), f"{case['public_plate']['label']} ({case['public_plate']['source']})"
     if not b:
         return {**row, "status": "no data", "predicted": None, "truth": case["truth_homes"]}
-    r = analyze(b)
-    per_floor = r["geometry"]["by_depth"][str(C.BASE_DEPTH_FT)]["homes_per_floor"]
-    floors = case["residential_floors"] or r["geometry"]["residential_floors"]
+    r = analyze(b, save=inputs == "our data")            # a hand-entered building is never cached as if it were data
+    geometry = r["geometry"]
+    per_floor = geometry["by_depth"][str(C.BASE_DEPTH_FT)]["homes_per_floor"]
+    floors = case["residential_floors"] or geometry["residential_floors"]
     predicted = per_floor * floors
-    row.update(building_id=b["id"], predicted=predicted, truth=case["truth_homes"], floors_used=floors)
+    row.update(building_id=b["id"], predicted=predicted, truth=case["truth_homes"], floors_used=floors,
+               inputs=inputs, plate_source=geometry["plate_source"], deep_plate=geometry["deep_plate"])
     if case["truth_homes"] is None:
         verdict = (r.get("econ") or {}).get("verdict", {}).get("code")
         return {**row, "status": "compare by hand", "our_verdict": verdict}
     error = (predicted - case["truth_homes"]) / case["truth_homes"]
-    return {**row, "error_pct": round(100 * error, 1),
-            "status": "pass" if abs(error) <= TOLERANCE else "miss"}
+    missed = ["home count"] if abs(error) > TOLERANCE else []
+    if "expect_deep_plate" in case and geometry["deep_plate"] != case["expect_deep_plate"]:
+        missed.append("deep-plate branch")               # a pre-registered condition, so it counts toward pass / miss
+    return {**row, "error_pct": round(100 * error, 1), "missed": missed, "status": "miss" if missed else "pass"}
 
 
 def costar_only_plate(b: dict) -> dict:
     """The same building without Vexcel: a square floor with CoStar's typical floor area."""
     side = (b.get("typical_floor_sf") or 15_000) ** 0.5
-    from backend.tools.geo import to_feet, to_lonlat
     center = to_feet(b["footprint"]).centroid
     square = box(center.x - side / 2, center.y - side / 2, center.x + side / 2, center.y + side / 2)
     return {**b, "footprint": to_lonlat(square)}

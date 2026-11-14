@@ -22,10 +22,20 @@ CoStar building (footprint, stories, vacancy, rent, assessed value)
 - Coordinates are converted to feet (Texas South Central projection) so every distance is in feet.
 - **Units band**: everything within D feet of a window: `plate - plate.buffer(-D)`. A negative buffer shrinks the shape inward by D, so the difference is a ring along the facade.
 - **Corridor**: a 6 ft ring right behind the units.
-- **Core**: from Matterport when we have a scan. Otherwise we assume a centered core covering 18% of the floor (a guess, adjustable in `config.py`).
+- **Core**: from the Matterport scan when the scan shows one (see `matterport_plan.py`). Otherwise we assume a centered core covering 18% of the floor (a guess, adjustable in `config.py`).
 - **Dark zone**: whatever is left between the corridor and the core. In a real conversion it becomes storage, gym or coworking. 1801 Smith (Elev8) did exactly this.
 - **Narrow floors**: if the floor is narrower than two unit depths plus a corridor, the depth is capped at half the width minus half a corridor (units on both sides of a central corridor). Uses the largest circle that fits in the floor.
 - **Deep floor**: if the average window-to-core distance leaves more than 12 ft of dark band behind the corridor, the agent considers a light well or a mixed program (hotel or amenity floors, like One City Centre).
+
+## matterport_plan.py
+
+- A saved scan is a wall graph: points and wall edges, in metres, in the scan's own frame (not north-aligned).
+- **Plate**: the outer outline of all the walls, converted to feet.
+- **Core**: the parts of the plate that no scanned room covers (elevators and stairs usually aren't scanned), plus rooms labelled void, elevator, stair or restroom. Each room's polygon is built from its own wall edges.
+- Columns are tiny voids too. Pieces under 100 sf are dropped, and what's left only counts as a core if it adds up to 5-40% of the floor. Otherwise there is no scan core and we keep the assumed one.
+- The plate and the core always come from the same scan, because the scan can't be lined up with a map footprint.
+- The plate is `matterport.floor_outline()`, the same outline the 3D labels use, so the labels and the analysis can't disagree. A test checks it.
+- `pipeline.scan_plate()` uses the scan as the building's plate only if it's a full floor: at least 85% of the typical floor (the same rule as the 3D labels). A smaller scan is a suite and the footprint stays. The result says which plate was used (`plate_source`, `footprint_source`).
 
 ## layout.py
 
@@ -80,7 +90,9 @@ Converting reuses the structure, so it avoids 50-75% of the embodied carbon of a
 - The cases and their ground truth are written in the file before running.
 - Buildings are matched by address. Missing ones show "no data" instead of a guess.
 - Every run is appended to `work/proof_history.jsonl`, so the first result is never lost, along with a short hash of the parameters that produced it.
-- Input sensitivity: each building is run again with a square floor of CoStar's typical floor area, to show how much the footprint changes the answer. That's sensitivity, not accuracy.
+- A building that isn't in our data can be checked on published dimensions (a `public_plate` on the case). Its row carries the case's label ("AECOM, public numbers, not CoStar") with the source, and it is never saved to `work/`.
+- A case can also expect the deep-plate flag (`expect_deep_plate`). If the flag is wrong the case is a miss, and the row lists what missed.
+- Input sensitivity: each building is run again with a square floor of CoStar's typical floor area, to show how much the real plate (a scanned floor, or the footprint) changes the answer. That's sensitivity, not accuracy.
 
 ## Agent trace (agent.py + AgentPanel.jsx)
 

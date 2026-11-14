@@ -6,9 +6,39 @@ BUILDINGS = {"X": {"id": "X", "name": "Smith tower", "address": "1801 Smith St",
                                  [-95.3655, 29.7573], [-95.3662, 29.7573], [-95.3662, 29.7568]]]}}}
 
 
+# A made-up case for a building that isn't in our data: a 70 x 250 ft slab, which fits 10 homes per floor at 36 ft.
+MADE_UP = {"case": "Made-up tower", "address": "999 Nowhere", "role": "test", "truth_homes": 100, "residential_floors": 10,
+           "source": "made up", "public_plate": {"width_ft": 70, "length_ft": 250, "stories": 12,
+                            "label": "Made up, public numbers, not CoStar", "source": "p. 1"}}
+
+
 def test_missing_buildings_report_no_data():
-    rows = [V.check_case(c, {}) for c in V.CASES]
-    assert {r["status"] for r in rows} == {"no data"}
+    rows = [V.check_case(c, {}) for c in V.CASES if not c.get("public_plate")]
+    assert rows and {r["status"] for r in rows} == {"no data"}
+
+
+def test_case_can_run_on_public_numbers_and_says_so(monkeypatch, tmp_path):
+    monkeypatch.setattr("backend.pipeline.WORK_DIR", tmp_path)
+    row = V.check_case(MADE_UP, {})
+    assert row["predicted"] == 100 and row["status"] == "pass" and row["missed"] == []
+    assert row["inputs"] == "Made up, public numbers, not CoStar (p. 1)"
+    assert list(tmp_path.iterdir()) == []                  # a hand-entered building is never cached as if it were data
+
+
+def test_our_data_wins_over_public_numbers(monkeypatch, tmp_path):
+    monkeypatch.setattr("backend.pipeline.WORK_DIR", tmp_path)
+    row = V.check_case({**MADE_UP, "address": "1801 Smith"}, BUILDINGS)
+    assert row["inputs"] == "our data" and row["building_id"] == "X"
+
+
+def test_deep_plate_expectation_is_part_of_the_result(monkeypatch, tmp_path):
+    monkeypatch.setattr("backend.pipeline.WORK_DIR", tmp_path)
+    wrong = V.check_case({**MADE_UP, "expect_deep_plate": True}, {})        # a 70 ft slab is not a deep plate
+    assert wrong["deep_plate"] is False and wrong["status"] == "miss" and wrong["missed"] == ["deep-plate branch"]
+    right = V.check_case({**MADE_UP, "expect_deep_plate": False}, {})
+    assert right["status"] == "pass"
+    off = V.check_case({**MADE_UP, "truth_homes": 200}, {})
+    assert off["status"] == "miss" and off["missed"] == ["home count"]
 
 
 def test_case_matched_by_address_gets_an_error_pct():
@@ -18,6 +48,7 @@ def test_case_matched_by_address_gets_an_error_pct():
 
 def test_run_writes_proof_and_keeps_history(monkeypatch, tmp_path):
     monkeypatch.setattr(V, "WORK_DIR", tmp_path)
+    monkeypatch.setattr(V, "CASES", [V.CASES[0], MADE_UP])     # the real pre-registered cases only run in run_validation
     V.run(BUILDINGS)
     V.run(BUILDINGS)
     assert (tmp_path / "proof.json").exists()
