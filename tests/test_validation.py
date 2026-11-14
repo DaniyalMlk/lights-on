@@ -1,4 +1,14 @@
+import pytest
+
+from backend import pipeline
 from backend import validation as V
+
+
+@pytest.fixture(autouse=True)
+def scratch_work_dir(tmp_path, monkeypatch):
+    """check_case saves results like real data; keep them out of the real work/ folder."""
+    monkeypatch.setattr(pipeline, "WORK_DIR", tmp_path)
+    monkeypatch.setattr(V, "WORK_DIR", tmp_path)
 
 BUILDINGS = {"X": {"id": "X", "name": "Smith tower", "address": "1801 Smith St", "stories": 20, "vacancy": 0.6,
                    "typical_floor_sf": 18000,
@@ -58,3 +68,10 @@ def test_run_writes_proof_and_keeps_history(monkeypatch, tmp_path):
 def test_input_sensitivity_has_both_ranks():
     row = V.input_sensitivity(BUILDINGS)[0]
     assert {"homes_costar_only", "homes_with_footprint", "rank_costar_only", "rank_with_footprint"} <= row.keys()
+
+
+def test_costar_only_square_is_the_stand_in_itself():
+    from backend.costar_kit import square_footprint
+    b = {"id": "S", "lat": 29.7495, "lon": -95.372, "typical_floor_sf": 21_000,
+         "footprint": square_footprint(29.7495, -95.372, 21_000)}
+    assert V.costar_only_plate(b)["footprint"] == b["footprint"]

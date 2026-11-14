@@ -15,6 +15,7 @@ from pyproj import Transformer
 from shapely.geometry import box
 
 from backend import config as C
+from backend.costar_kit import square_footprint
 from backend.pipeline import WORK_DIR, analyze
 from backend.tools.geo import HOUSTON_EPSG, to_feet, to_lonlat
 
@@ -89,8 +90,15 @@ def check_case(case: dict, buildings: dict) -> dict:
 
 
 def costar_only_plate(b: dict) -> dict:
-    """The same building without Vexcel: a square floor with CoStar's typical floor area."""
-    side = (b.get("typical_floor_sf") or 15_000) ** 0.5
+    """The same building without Vexcel or a scan: the square stand-in the app itself would use.
+
+    It has to be exactly that square (costar_kit.square_footprint, drawn in lon/lat). A square of the same
+    area drawn on the projected grid sits about 2 degrees off it, and the layout counts that differently.
+    """
+    floor_sf = b.get("typical_floor_sf") or 15_000
+    if b.get("lat") is not None and b.get("lon") is not None:
+        return {**b, "footprint": square_footprint(b["lat"], b["lon"], floor_sf)}
+    side = floor_sf ** 0.5                                # no lat/lon (hand-made records): centre it on the footprint
     center = to_feet(b["footprint"]).centroid
     square = box(center.x - side / 2, center.y - side / 2, center.x + side / 2, center.y + side / 2)
     return {**b, "footprint": to_lonlat(square)}
