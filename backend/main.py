@@ -177,7 +177,14 @@ def proof():
     path = WORK_DIR / "proof.json"
     if not path.exists():
         raise HTTPException(404, "No validation run yet: python -m scripts.run_validation")
-    return json.loads(path.read_text())
+    result = json.loads(path.read_text())
+    # proof.json is the latest run. The official run is the first line of the history, so the page can say both.
+    history = WORK_DIR / "proof_history.jsonl"
+    if history.exists():
+        first = next((line for line in history.read_text().splitlines() if line.strip()), None)
+        if first:
+            result["official_ran_at"] = json.loads(first).get("ran_at")
+    return result
 
 
 class VerifyRequest(BaseModel):

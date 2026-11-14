@@ -62,7 +62,7 @@ def floor_labels(model: dict, typical_floor_sf: float | None = None) -> dict:
 
     labels = [{
         "kind": "measured",
-        "title": f"Within {C.BASE_DEPTH_FT} ft of a window: {base.daylight_share:.0%} of the floor",
+        "title": f"Within {C.BASE_DEPTH_FT} ft of a window: {base.daylight_share:.0%} of the floor outside the core",
         "detail": "Measured from the scan's walls. The scan doesn't mark windows, so the whole facade counts as glazed.",
         **_spot(window_spot.representative_point(), height_m, plate),
     }]

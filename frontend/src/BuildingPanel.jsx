@@ -101,7 +101,7 @@ export default function BuildingPanel({ buildingId, selected, incentive, focus, 
       <dl className="stats" aria-label="Key facts">
         <div><dt>Potential homes</dt><dd className="accent">{lo === hi ? lo.toLocaleString() : `${lo.toLocaleString()}–${hi.toLocaleString()}`}</dd>
           <small>30–42 ft layouts</small></div>
-        <div><dt>Near a window</dt><dd>{Math.round(daylight * 100)}%</dd><small>of the floor, within 36 ft</small></div>
+        <div><dt>Near a window</dt><dd>{Math.round(daylight * 100)}%</dd><small>of the floor outside the core, within 36 ft</small></div>
         <div className={selected?.lit ? "lit" : ""}><dt>Pays for itself?</dt><dd className="words">{verdict}</dd>
           <small>at ${incentive}/SF hypothetical incentive</small></div>
       </dl>

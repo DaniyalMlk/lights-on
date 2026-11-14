@@ -17,7 +17,7 @@ export default function StudyDetails({data, depth}) {
   const dark = base.dark_sf / g.plate_sf;
   const net = g.by_depth[depth].home_nsf_per_floor / g.plate_sf;
   const why = {
-    geometry: Math.round(base.daylight_share*100) + "% of the floor is in the 36 ft daylight band.",
+    geometry: Math.round(base.daylight_share*100) + "% of the floor outside the core is in the 36 ft daylight band.",
     economics: data.econ && b.assessed_value ? "Base residual is compared with the reference value per gross SF." : "Reference or rent unavailable; the model uses a neutral score.",
     market: b.office_rent_psf_year && b.mf_rent_psf_month ? "Annualized residential rent is compared with office rent." : "Missing rent comparison; the model uses a neutral score.",
     context: "Context uses a neutral assumption until surroundings are measured."
