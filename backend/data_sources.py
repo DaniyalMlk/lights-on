@@ -1,7 +1,9 @@
-"""Turn the CoStar data dump (plus footprints and rent comps) into data/buildings.json.
+"""Turn the CoStar kit (plus footprints and rent comps) into data/buildings.json.
 
-The column names in FIELD_MAP are placeholders. Fill them in after the CoStar workshop
-(or from /ask-costar) and re-run:  python -m scripts.build_dataset --help
+The real CoStar column names are part of CoStar's confidential schema (event terms, section 3.2),
+so they never go in this public repo. Put them in data/field_map.json (git-ignored), for example
+{"id": "<their id column>", "vacancy": "<their vacancy column>"}, then run:
+    python -m scripts.build_dataset --help
 """
 from __future__ import annotations
 
@@ -12,8 +14,10 @@ import re
 import statistics
 from pathlib import Path
 
-# our field name -> column name in the CoStar dump (placeholders: replace with the real names)
-FIELD_MAP = {
+FIELD_MAP_FILE = Path(__file__).resolve().parent.parent / "data" / "field_map.json"
+
+# our field name -> column name in the CoStar kit. Placeholders only: data/field_map.json overrides them.
+DEFAULT_FIELD_MAP = {
     "id": "PropertyID",
     "name": "PropertyName",
     "address": "Address",
@@ -28,7 +32,18 @@ FIELD_MAP = {
     "assessed_value": "AssessedValue",
     "year_built": "YearBuilt",
 }
-NUMERIC = {"lat", "lon", "stories", "rba", "typical_floor_sf", "vacancy", "office_rent_psf_year",
+
+
+def load_field_map(path: Path = FIELD_MAP_FILE) -> dict:
+    """The placeholders, with the real column names from data/field_map.json on top when that file exists."""
+    field_map = dict(DEFAULT_FIELD_MAP)
+    if path.exists():
+        field_map.update(json.loads(path.read_text()))
+    return field_map
+
+
+FIELD_MAP = load_field_map()
+NUMERIC ={"lat", "lon", "stories", "rba", "typical_floor_sf", "vacancy", "office_rent_psf_year",
            "assessed_value", "year_built"}
 
 COMPS_RADIUS_MILES = 0.75     # multifamily comps within this distance set the rent
@@ -92,11 +107,11 @@ def comps_rent(b: dict, comps: list[dict]) -> tuple[float | None, int]:
 
 
 def build_buildings(costar_rows: list[dict], footprints: dict, comps: list[dict] | None = None,
-                    office_only: bool = True) -> tuple[list[dict], list[dict]]:
+                    office_only: bool = True, field_map: dict = FIELD_MAP) -> tuple[list[dict], list[dict]]:
     """Join CoStar records with footprints (by id) and rent comps. Returns (buildings, skipped with reasons)."""
     buildings, skipped = [], []
     for row in costar_rows:
-        b = normalize(row)
+        b = normalize(row, field_map)
         if office_only and b.get("property_type") and "office" not in str(b["property_type"]).lower():
             continue
         reasons = []
@@ -128,5 +143,6 @@ def load_footprints(geojson_path: str | Path, id_property: str = "PropertyID") -
 
 
 def fetch_vexcel_footprint(lat: float, lon: float) -> dict | None:
-    """TODO(H2): call the Vexcel building-attributes API with VEXCEL_API_KEY and return the footprint polygon."""
-    raise NotImplementedError("Fill in after the CoStar workshop: endpoint, auth header, response shape")
+    """TODO: call Vexcel's building/parcel API with VEXCEL_API_KEY and return the footprint polygon.
+    The endpoint is in Vexcel's own quickstart, linked from the Vexcel keys card in Discord."""
+    raise NotImplementedError("Needs the Vexcel building endpoint and response shape")

@@ -66,6 +66,7 @@ Converting reuses the structure, so it avoids 50-75% of the embodied carbon of a
 - The orchestrator plans, then hands work to four sub-agents: screener, analyst, writer, verifier.
 - `/work/` in the agent's file system points to the real `work/` folder, so the writer reads the actual tool outputs.
 - Tools return the same shape every time: `status`, `summary`, `values`, `source`, `next_actions`. `next_actions` is how the analyst gets told to check Matterport, or to try the deep-plate or podium branch.
+- `check_matterport` finds a building's scans in Matterport's public `models_index.csv` (same CoStar property ID, or within 75 m), pulls the first full office floor if it isn't saved yet, and saves a summary to `work/<id>/matterport.json`, so the verifier can check those numbers too. It never claims scans for the synthetic sample buildings. Code: `backend/matterport.py`.
 
 ## data_sources.py
 

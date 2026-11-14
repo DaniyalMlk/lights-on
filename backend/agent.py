@@ -16,6 +16,7 @@ from langchain.agents.middleware import TodoListMiddleware
 from langchain_core.tools import tool
 
 from backend import config as C
+from backend import matterport
 from backend.pipeline import WORK_DIR, analyze, load_result
 from backend.tools.verifier import verify
 
@@ -68,10 +69,54 @@ def analyze_building(building_id: str) -> str:
 
 @tool
 def check_matterport(building_id: str) -> str:
-    """Pull the Matterport scan for a building (core location, ceiling height). Only worth it for borderline buildings."""
-    # TODO(H2): call the Matterport API with MATTERPORT_API_KEY and pass the real core polygon to analyze().
-    return json.dumps({"status": "warning", "summary": "Matterport not connected yet; using the assumed centered core",
-                       "values": {}, "source": "matterport", "next_actions": ["continue with the assumed core"]})
+    """Find Matterport scans of a building and summarize its scanned office floors (rooms, scanned area).
+    Worth it when the daylight share is borderline or the plate looks deep. Saves to /work/<id>/matterport.json."""
+    b = _buildings().get(building_id)
+    if not b:
+        return json.dumps({"status": "error", "summary": f"unknown building {building_id}",
+                           "next_actions": ["call find_candidates to get valid ids"]})
+    if b.get("synthetic"):
+        return json.dumps({"status": "warning", "summary": "sample building: it has no real scans",
+                           "values": {}, "source": "matterport", "next_actions": ["continue with the assumed core"]})
+    index = matterport.load_index()
+    if not index:
+        return json.dumps({"status": "warning", "summary": "Matterport index not downloaded; the core stays assumed",
+                           "values": {}, "source": "matterport",
+                           "next_actions": ["tell the team: python -m scripts.check_keys --index"]})
+
+    scans = matterport.scans_for(b, index)
+    to_pull = next((s for s in scans if s["full_floor"] and not s["saved"]), None)
+    if to_pull and os.environ.get("MATTERPORT_API_KEY"):
+        try:
+            matterport.fetch_floor(to_pull["model_id"])
+            to_pull["saved"] = True
+        except Exception as e:      # a failed pull shouldn't stop the run
+            to_pull["error"] = str(e)[:200]
+
+    floors = []
+    for s in scans:
+        model = matterport.load_floor(s["model_id"]) if s["full_floor"] else None
+        if model:
+            rooms = matterport.room_table(model)
+            floors.append({"model_id": s["model_id"], "name": s["name"], "room_count": len(rooms),
+                           "scanned_area_sf": sum(r["area_sf"] for r in rooms), "largest_rooms": rooms[:5]})
+    result = {"scans": scans, "floors": floors}
+    folder = WORK_DIR / building_id
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "matterport.json").write_text(json.dumps(result, indent=2))
+
+    if floors:
+        summary = f"{len(scans)} scans; {len(floors)} office floor(s) pulled with rooms and walls"
+        next_actions = ["compare scanned_area_sf with the typical floor SF before treating a scan as the whole floor",
+                        "the core in the results is still the assumed one unless geometry says core_source=matterport"]
+    elif scans:
+        summary = f"{len(scans)} scans, but no full office floor pulled (rooms or suites only)"
+        next_actions = ["say the core is assumed; a suite scan doesn't show the core"]
+    else:
+        summary = "no Matterport scans of this building"
+        next_actions = ["continue with the assumed core and say so in the memo"]
+    return json.dumps({"status": "success", "summary": summary, "values": result,
+                       "source": f"/work/{building_id}/matterport.json", "next_actions": next_actions})
 
 
 @tool
@@ -92,8 +137,9 @@ SUBAGENTS = [
         "name": "analyst",
         "description": "Runs the feasibility tools on one building and decides which branch applies.",
         "system_prompt": (
-            "You analyze one building. Call analyze_building. Follow its next_actions: if Matterport is worth "
-            "pulling, call check_matterport and say why. Report the numbers exactly as the tool returned them."
+            "You analyze one building. Call analyze_building. Follow its next_actions. Call check_matterport when "
+            "the daylight share is borderline or the plate is deep, and say whether the core is measured or assumed. "
+            "Report the numbers exactly as the tools returned them."
         ),
         "tools": [analyze_building, check_matterport],
     },
