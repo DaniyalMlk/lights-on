@@ -113,11 +113,9 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
           <Plate buildingId={buildingId} depth={depth} />
           <ul className="plate-legend">{LEGEND.map(([key, name]) => <li key={key} className={key}>{name}</li>)}</ul>
         </div>
-        <p className="plate-count"><b><AnimatedNumber value={depths[depth].homes_per_floor} /></b> homes a floor,{" "}
-          <b><AnimatedNumber value={depths[depth].homes} /></b> in the building at {depth} ft.
-          {" "}Bedrooms need windows; anything deeper than the band stays dark.</p>
-        <p className="fine">Geometry: {building.footprint_source || "building footprint"}. Assumption: a centered core
-          takes 18% of the floor plate.</p>
+        <p className="plate-count"><b><AnimatedNumber value={depths[depth].homes_per_floor} /></b> homes a floor ·{" "}
+          <b><AnimatedNumber value={depths[depth].homes} /></b> in the building</p>
+        <p className="fine">Bedrooms need windows. Deeper than {depth} ft stays dark.</p>
       </section>
 
       <ScanPanel building={building} />
@@ -153,6 +151,8 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
         <h3>Carbon <span className="muted">· illustrative</span></h3>
         <p>Reusing the structure would avoid roughly <b>{tonnes(carbon.avoided_t_low)} to {tonnes(carbon.avoided_t_high)}</b> CO₂e
           of upfront embodied carbon compared with building new.</p>
+        <p className="fine">Literature range (50–75% of new-build embodied carbon), not a measured saving for this building.</p>
+        <details className="explain"><summary>Compare the scenarios</summary>
         <table className="compact">
           <thead><tr><th>Scenario</th><th>Homes</th><th>Upfront CO₂e</th></tr></thead>
           <tbody>
@@ -162,7 +162,7 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
                 <td>{tonnes(scenario.new_embodied_t_low)}–{tonnes(scenario.new_embodied_t_high)}</td></tr>)}
           </tbody>
         </table>
-        <p className="fine">Literature range (50–75% of new-build embodied carbon), not a measured saving for this building.</p>
+        </details>
       </section>
 
       <StudyDetails data={data} depth={depth} />

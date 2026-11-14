@@ -67,6 +67,8 @@ const RISE_MS = 900;          // the lights climb a tower in under a second
 const FALL_MS = 350;          // and go out faster
 const ORBIT_DEG_PER_S = 9;    // one full turn in 40 seconds
 const CAMERA = { pitch: 60, bearing: -24 };
+const MAX_PITCH = 78;
+const HOUSTON = [[-95.75, 29.5], [-95.0, 30.0]];   // the view never leaves the city
 
 // Window textures for the towers. One 16 x 16 tile holds four windows; a lit tower has most of them on,
 // a dark tower has one faint one, so the city reads as "offices at night" rather than grey boxes.
@@ -136,7 +138,33 @@ function glowPoints(data, progress) {
   };
 }
 
-export default function CityMap({ data, selectedId, hoveredId, rightInset, bottomInset, onSelect, onHover }) {
+// Drag turns the view around its middle, like turning a 3D model in your hand: left-right spins it,
+// up-down tilts it. Shift + drag (or right-drag, or a finger) moves the map instead.
+function orbitByDrag(map, onGrab) {
+  const surface = map.getCanvasContainer();
+  let drag = null;
+  surface.addEventListener("contextmenu", (e) => e.preventDefault());
+  surface.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary || e.target.closest(".pin")) return;
+    drag = { x: e.clientX, y: e.clientY, move: e.pointerType !== "mouse" || e.button === 2 || e.shiftKey };
+    try { surface.setPointerCapture(e.pointerId); } catch { /* the drag still works inside the map */ }
+    onGrab();
+  });
+  surface.addEventListener("pointermove", (e) => {
+    if (!drag || !e.isPrimary) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+    if (drag.move) map.panBy([-dx, -dy], { animate: false });
+    else map.jumpTo({ bearing: map.getBearing() + dx * 0.5,
+                      pitch: Math.max(0, Math.min(MAX_PITCH, map.getPitch() - dy * 0.35)) });
+  });
+  const release = (e) => { if (e.isPrimary) drag = null; };
+  surface.addEventListener("pointerup", release);
+  surface.addEventListener("pointercancel", release);
+}
+
+export default function CityMap({ data, selectedId, hoveredId, rightInset, bottomInset, onSelect, onHover, onGrab }) {
   const container = useRef(null);
   const map = useRef(null);
   const pins = useRef(new Map());
@@ -145,7 +173,7 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
   const [orbiting, setOrbiting] = useState(false);
   const flying = useRef(false);
   const latest = useRef({});
-  latest.current = { data, onSelect, onHover, bottomInset, active: [selectedId, hoveredId].filter(Boolean) };
+  latest.current = { data, onSelect, onHover, onGrab, bottomInset, active: [selectedId, hoveredId].filter(Boolean) };
 
   function paint() {
     const instance = map.current;
@@ -166,10 +194,17 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
         style,
         center: [-95.366, 29.757],
         zoom: 15,
-        maxPitch: 78,
+        maxPitch: MAX_PITCH,
+        minZoom: 11.5,
+        maxBounds: HOUSTON,
+        dragRotate: false,
         ...CAMERA,
         attributionControl: false,
       });
+      instance.dragPan.disable();                        // dragging is ours: see orbitByDrag
+      instance.scrollZoom.setWheelZoomRate(1 / 160);     // mouse wheel: about three times the default speed
+      instance.scrollZoom.setZoomRate(1 / 40);           // trackpad: about twice the default speed
+      orbitByDrag(instance, () => { setOrbiting(false); latest.current.onGrab?.(); });
       instance.addControl(new AttributionControl({ compact: true }), "top-right");   // the dock owns the bottom edge
       map.current = instance;
       instance.once("load", () => {
@@ -276,6 +311,11 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
     return () => cancelAnimationFrame(request);
   }, [orbiting, ready]);
 
+  function zoomBy(step) {
+    const instance = map.current;
+    if (instance) instance.easeTo({ zoom: instance.getZoom() + step, duration: 220 });
+  }
+
   function resetCamera() {
     const instance = map.current;
     if (!instance) return;
@@ -290,13 +330,13 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
     {!ready && <p className="map-loading" role="status">Loading downtown Houston…</p>}
     {ready && <div className="map-tools" role="group" aria-label="Map view">
       <button className="orbit" aria-pressed={orbiting} onClick={() => setOrbiting(!orbiting)}
-              title="Turn slowly around the view. Ctrl + drag (or right-drag) to look around yourself.">
+              title="Turn slowly around the view by itself. Or just drag the map to turn it yourself.">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 10a6.5 6.5 0 1 1 2.2 4.9" /><path d="M3 15.5v-3.4h3.4" /></svg>
         {orbiting ? "Stop" : "360°"}
       </button>
-      <button onClick={() => map.current?.zoomIn()} aria-label="Zoom in" title="Zoom in">
+      <button onClick={() => zoomBy(1)} aria-label="Zoom in" title="Zoom in">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" /></svg></button>
-      <button onClick={() => map.current?.zoomOut()} aria-label="Zoom out" title="Zoom out">
+      <button onClick={() => zoomBy(-1)} aria-label="Zoom out" title="Zoom out">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 10h11" /></svg></button>
       <button onClick={resetCamera} aria-label="Reset the view" title="Reset the view">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5l3 8-3-1.6-3 1.6z" /><path d="M10 12.5v4" /></svg></button>

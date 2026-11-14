@@ -49,9 +49,9 @@ export default function ProofPanel({ proof }) {
     <header>
       <p className="eyebrow">Validation</p>
       <h2>{s.passed} of {s.scored} scored cases passed</h2>
-      <p className="lede">We wrote the expected answers down before running the tests on real Houston conversions,
-        and we show the miss. Case 1 is a development check, not a holdout. {s.dropped} dropped for lack of data;
-        {" "}{s.described} described, not scored; no negative case found.</p>
+      <p className="lede">Expected answers were written down before the run, and the miss is shown. Case 1 is a
+        development check, not a holdout. {s.dropped} dropped for lack of data; {s.described} described, not scored;
+        no negative case found.</p>
       <p className="fine">Not fully blind: a first run on real data (Sat 00:30) showed some results early, and the change
         log in docs/preregistration.md says which. Official run {when(proof.ran_at)}, parameters {proof.params_version}.</p>
     </header>

@@ -112,8 +112,7 @@ export default function ScanPanel({building}) {
     <header className="scan-head">
       <div>
         <h3>Labeled in 3D, automatically</h3>
-        <p className="fine">Lights On measured this scanned floor and put {scan.labels.length} labels inside the 3D tour.
-          Each one says how we know it.</p>
+        <p className="fine">Open the tour to see {scan.labels.length} labels placed inside it. Each says how we know it.</p>
       </div>
       {key && <button className="pill" onClick={() => { setOpen(!open); setFocus(null); }}>
         {open ? "Close tour" : "Open 3D tour"}<span className="pill-icon" aria-hidden="true">{open ? "×" : "↗"}</span></button>}
@@ -121,8 +120,8 @@ export default function ScanPanel({building}) {
     {!key && <p className="fine">Tour unavailable. The saved floor labels are below.</p>}
     {open && <Tour scan={scan} sdkKey={key} focus={focus} onPlaced={setPlaced} onClose={() => setOpen(false)}/>}
     <ul className="scan-labels">{scan.labels.map((l,i) => <li key={i}>
-      <button className={"scan-label "+l.kind} disabled={!canFly} aria-pressed={canFly && focus?.index === i}
-              title={canFly ? "Fly to this label in the tour" : undefined}
+      <button className={"scan-label "+l.kind} aria-expanded={focus?.index === i}
+              title={canFly ? "Fly to this label in the tour" : "Show how we know"}
               onClick={() => setFocus({index:i, n:(focus?.n ?? 0)+1})}>
         <span className="kind">{l.kind}</span><strong>{l.title}</strong><small>{l.detail}</small></button></li>)}</ul>
   </section>;

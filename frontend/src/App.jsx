@@ -38,6 +38,7 @@ export default function App() {
   const [incentive, setIncentive] = useState(0);
   const [vacancyGate, setVacancyGate] = useState(35);
   const [touched, setTouched] = useState(false);          // the slider thumb pulses until first use
+  const [explored, setExplored] = useState(false);        // the "drag to turn" hint fades after the first drag
   const [loadError, setLoadError] = useState(false);
   const [proof, setProof] = useState(undefined);
   const [inset, setInset] = useState({ right: 0, bottom: 0 });   // how much of the map the floating panels cover
@@ -123,7 +124,7 @@ export default function App() {
     <main className="stage">
       <section className="map-wrap" aria-label="Map of downtown Houston">
         {mapData && <CityMap data={mapData} selectedId={selectedId} hoveredId={hoveredId} rightInset={inset.right} bottomInset={inset.bottom}
-                             onSelect={selectBuilding} onHover={setHoveredId} />}
+                             onSelect={selectBuilding} onHover={setHoveredId} onGrab={() => setExplored(true)} />}
 
         <header className="island">
           <a className="brand" href="/" aria-label="Lights On, start over"><WindowMark />Lights On</a>
@@ -138,12 +139,12 @@ export default function App() {
         {/* One dock under the map: the incentive, what it lights up, and the vacancy filter */}
         <div className="dock" ref={card}>
           <div className="dock-note">
-            <p>A tower lights up when it could become homes and still pay for itself.</p>
             <ul className="legend">
-              <li className="lit">Clears the screen</li>
+              <li className="lit">Could become homes and pay for itself</li>
               <li className="dark">Not yet</li>
               <li className="off">Filtered out</li>
             </ul>
+            <p className="hint" data-seen={explored}>Drag to turn the city · Shift + drag to move · Scroll to zoom</p>
           </div>
           <div className="scenario">
             <div className="control">
@@ -157,8 +158,8 @@ export default function App() {
             </div>
             <div className={`result ${litTowers.length ? "lit" : ""}`} aria-live="polite">
               <b>{mapData ? <AnimatedNumber value={litHomes} /> : "–"}</b>
-              <span>of {allHomes.toLocaleString()} homes clear the screen
-                <small>{litTowers.length ? `${litTowers.length} of ${towers.length} towers lit` : "Drag the slider to light towers"}</small></span>
+              <span>of {allHomes.toLocaleString()} homes
+                <small>{litTowers.length ? `${litTowers.length} of ${towers.length} towers lit` : "Drag the slider"}</small></span>
             </div>
             <div className="control minor">
               <div className="scenario-row">

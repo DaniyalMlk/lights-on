@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { modelName, readable, when } from "./format.js";
 
-const ROLE = {
-  screener: "Finds the candidate buildings",
-  analyst: "Runs the geometry, economics and carbon tools",
-  writer: "Drafts the memo from the saved results",
-  verifier: "Traces every number in the draft back to a tool",
-};
-
 // The raw event stream, grouped into what a reader follows: a plan, one step per sub-agent, a final check, the answer
 function toSteps(events) {
   const out = { plan: null, steps: [], final: null, answer: null, notices: [] };
@@ -69,7 +62,7 @@ function Run({ events, names }) {
 
     <ol className="timeline">{r.steps.map((s, i) => (
       <li key={i} className="step" style={{ "--i": i }}>
-        <header><b>{s.to}</b><span>{ROLE[s.to] ?? "Sub-agent"}</span></header>
+        <header><b>{s.to}</b></header>
         <p className="task">{say(s.task)}</p>
         {s.tools.length > 0 && <ul className="tools">{s.tools.map((t, j) =>
           <li key={j} data-bad={t.summary?.startsWith("error") || undefined}><code>{t.name}</code>
@@ -77,7 +70,7 @@ function Run({ events, names }) {
         {s.rejection && <div className="rejected"><b>Verifier rejected</b>{s.rejection.rejected.map((x, k) =>
           <p key={k}>{say(x.text)} · {x.reason}{x.fix ? ` · ${x.fix}` : ""}</p>)}</div>}
         {s.drafts.length > 1 && <p className="fine">Draft resubmitted after a rejection.</p>}
-        {s.reply && <Clamp text={say(s.reply)} lines={5} />}
+        {s.reply && <Clamp text={say(s.reply)} lines={3} />}
       </li>))}
     </ol>
 
@@ -148,8 +141,8 @@ export default function AgentPanel({ buildingId, names }) {
       <header>
         <p className="eyebrow">Agent</p>
         <h2>How the memo was made</h2>
-        <p className="lede">A planner hands the job to four sub-agents. Every number in the memo must trace back to
-          a saved tool output, and a final check in code repeats that test.</p>
+        <p className="lede">Every number in the memo must trace back to a saved tool output. A final check in code
+          repeats that test.</p>
       </header>
       {notice && <p role="status" className="notice">{notice} {record ? "Showing the saved recording." : "Recording unavailable."}</p>}
 
