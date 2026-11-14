@@ -54,7 +54,14 @@ function Clamp({ text, lines = 6 }) {
 function Run({ events, names }) {
   const r = toSteps(events);
   const say = (text) => readable(text, names);
+  const toolCalls = r.steps.reduce((n, s) => n + s.tools.length, 0);
   return <>
+    <ul className="agent-summary" aria-label="Run summary">
+      <li><b>{r.steps.length}</b><span>sub-agent steps</span></li>
+      <li><b>{toolCalls}</b><span>tool calls</span></li>
+      {r.final && <li data-ok={r.final.status === "success"}><b>{r.final.status === "success" ? "Passed" : "Failed"}</b>
+        <span>final check in code</span></li>}
+    </ul>
     {r.plan && <section className="block plan">
       <h3>Plan</h3>
       <ol>{r.plan.map((t, i) => <li key={i} data-status={t.status}>{say(t.content)}</li>)}</ol>

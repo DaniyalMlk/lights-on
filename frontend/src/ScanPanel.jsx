@@ -72,23 +72,19 @@ export default function ScanPanel({building}) {
     read();
     return () => controller.abort();
   },[building.id]);
-  const sources = [
-    ["CoStar", building.synthetic ? "sample data" : building.rba || building.typical_floor_sf ? "property record" : "unconfirmed", !building.synthetic],
-    ["Vexcel", building.footprint_origin === "vexcel" ? "outline used" : building.vexcel_ratio ? "outline is the building's base, not used" : "no outline", building.footprint_origin === "vexcel"],
-    ["Matterport", scan?.model_id ? "floor scan" : scan ? "no usable floor labels" : "checking", Boolean(scan?.model_id)],
-  ];
-  return <section className="block sources">
-    <h3>Data sources</h3>
-    <ul className="source-list">{sources.map(([name, state, used]) =>
-      <li key={name} data-used={used}><b>{name}</b><span>{state}</span></li>)}</ul>
-    {!scan?.labels?.length ? <p className="fine">{scan?.reason || "Checking for a scanned floor…"}</p> :
-      <>
-        {key ? <button className="secondary" onClick={() => setOpen(!open)}>{open ? "Close" : "Open"} the 3D tour</button>
-             : <p className="fine">Tour unavailable. The saved floor labels are below.</p>}
-        {open && <Tour scan={scan} sdkKey={key}/>}
-        <h4>Labels on the scanned floor</h4>
-        <ul className="scan-labels">{scan.labels.map((l,i) => <li className={"scan-label "+l.kind} key={i}>
-          <span className="kind">{l.kind}</span><strong>{l.title}</strong><small>{l.detail}</small></li>)}</ul>
-      </>}
+  if (!scan?.labels?.length) return null;          // no full-floor scan: the geometry line above already says so
+  return <section className="block scan">
+    <header className="scan-head">
+      <div>
+        <h3>The scanned floor</h3>
+        <p className="fine">Each label says how we know it: measured, checked, assumed or estimated.</p>
+      </div>
+      {key && <button className="pill" onClick={() => setOpen(!open)}>
+        {open ? "Close tour" : "Open 3D tour"}<span className="pill-icon" aria-hidden="true">{open ? "×" : "↗"}</span></button>}
+    </header>
+    {!key && <p className="fine">Tour unavailable. The saved floor labels are below.</p>}
+    {open && <Tour scan={scan} sdkKey={key}/>}
+    <ul className="scan-labels">{scan.labels.map((l,i) => <li className={"scan-label "+l.kind} key={i}>
+      <span className="kind">{l.kind}</span><strong>{l.title}</strong><small>{l.detail}</small></li>)}</ul>
   </section>;
 }

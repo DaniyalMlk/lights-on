@@ -43,13 +43,21 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
 
   if (!buildingId) return <div className="panel empty">Pick a tower on the map or in the list.</div>;
   if (error) return <div className="panel empty">Building analysis unavailable. Is the API running?</div>;
-  if (!data) return <div className="panel"><div className="skeleton-block tall" /><div className="skeleton-block" /></div>;
+  if (!data) return <div className="panel"><div className="skeleton-block" /><div className="skeleton-block tall" /></div>;
 
   const { building, geometry, econ, carbon } = data;
   const depths = geometry.by_depth;
   const counts = Object.values(depths).map(row => row.homes);
+  const lo = Math.min(...counts), hi = Math.max(...counts);
+  const daylight = depths["36"].daylight_share;
   const credit = incentive * (selected?.gfa_sf ?? 0);
   const swing = Math.max(1, ...(econ?.tornado ?? []).flatMap(t => [Math.abs(t.low_per_gsf), Math.abs(t.high_per_gsf)]));
+  const sources = [
+    ["CoStar", building.synthetic ? "sample data" : "property record", !building.synthetic],
+    ["Vexcel", building.footprint_origin === "vexcel" ? "outline used" : "outline not used", building.footprint_origin === "vexcel"],
+    ["Matterport", geometry.plate_source === "matterport_scan" ? "floor scan used" : "no full-floor scan", geometry.plate_source === "matterport_scan"],
+  ];
+  const verdict = selected?.gated_out ? "Filtered out by vacancy" : selected?.short ?? "–";
 
   return (
     <article className="panel building">
@@ -57,25 +65,40 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
         <p className="eyebrow">{[building.address, `${building.stories} stories`].filter(Boolean).join(" · ")}</p>
         <h2>{building.name}</h2>
         {building.synthetic && <p className="tag">Sample data, not a real building</p>}
+        <ul className="sources" aria-label="Data used">{sources.map(([name, state, used]) =>
+          <li key={name} data-used={used} title={`${name}: ${state}`}><b>{name}</b> {state}</li>)}</ul>
       </header>
 
-      <section className="hero-count">
-        <p className="hero-number"><AnimatedNumber value={depths[depth].homes} /></p>
-        <p className="hero-label">potential homes<small>{depths[depth].homes_per_floor} per floor · indicative layout</small></p>
+      <section className="kpis" aria-label="Key facts">
+        <div className="kpi">
+          <p className="kpi-value">{lo === hi ? lo.toLocaleString() : `${lo.toLocaleString()}–${hi.toLocaleString()}`}</p>
+          <p className="kpi-label">potential homes<small>30–42 ft layouts</small></p>
+        </div>
+        <div className="kpi">
+          <p className="kpi-value">{Math.round(daylight * 100)}%</p>
+          <p className="kpi-label">of the floor near a window<small>within 36 ft</small></p>
+        </div>
+        <div className={`kpi verdict-kpi ${selected?.lit ? "lit" : ""}`}>
+          <p className="kpi-value small">{verdict}</p>
+          <p className="kpi-label"><small>at ${incentive}/SF hypothetical incentive</small></p>
+        </div>
       </section>
-      <div className="segmented" role="group" aria-label="Unit depth">{[30, 36, 42].map(d =>
-        <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>
-          <b>{d} ft</b><small>{depths[String(d)].homes.toLocaleString()} homes</small>
-        </button>)}</div>
 
-      <figure className="plate-figure">
+      <section className="plate-card">
+        <header>
+          <h3>Floor plate <span className="muted">· indicative layout</span></h3>
+          <div className="segmented" role="group" aria-label="Unit depth">{[30, 36, 42].map(d =>
+            <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>{d} ft</button>)}</div>
+        </header>
         <img className="plate" src={`/api/buildings/${encodeURIComponent(buildingId)}/plate.svg?depth=${depth}`}
              alt={`Indicative floor plate at ${depth} ft unit depth`} />
-        <figcaption>
+        <div className="plate-foot">
+          <p className="plate-count"><b><AnimatedNumber value={depths[depth].homes_per_floor} /></b> homes a floor ·{" "}
+            <b><AnimatedNumber value={depths[depth].homes} /></b> in the building at {depth} ft</p>
           <ul className="plate-legend">{LEGEND.map(([key, name]) => <li key={key} className={key}>{name}</li>)}</ul>
-          <p>Bedrooms need windows. Anything deeper than the band stays dark.</p>
-        </figcaption>
-      </figure>
+          <p className="plate-rule">Bedrooms need windows. Anything deeper than the band stays dark.</p>
+        </div>
+      </section>
       <p className="fine">Geometry: {building.footprint_source || "building footprint"}. Assumption: a centered core
         takes 18% of the floor plate.</p>
 
@@ -88,9 +111,9 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
           <ResidualRange worst={econ.cases.downside.residual + credit} base={econ.cases.base.residual + credit}
                          high={econ.cases.upside.residual + credit} />
           <p className="fine">Indicative residual at the 36 ft layout: value as housing minus conversion cost and
-            developer margin{incentive ? `, including a $${incentive}/SF incentive` : ""}. Compared with
+            developer margin{incentive ? `, plus a hypothetical $${incentive}/SF incentive` : ""}. Compared with
             the {econ.inputs.reference_label || "assessed value"} ({building.synthetic ? "a sample figure" : "a CoStar figure, so not shown here"}),
-            not an offer price. Not included: {econ.excluded.join(", ")}.</p>
+            not an offer price. Not included: {econ.excluded.join(", ")}. Incentives: may be eligible, verify with the program.</p>
 
           <h4>What moves it most</h4>
           {econ.tornado.map((t) => (
@@ -114,7 +137,7 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
           <tbody>
             <tr><td>Leave empty</td><td>{carbon.leave_empty.homes}</td><td>{tonnes(carbon.leave_empty.new_embodied_t)}</td></tr>
             {[["Convert", carbon.convert], ["Demolish & rebuild", carbon.demolish_rebuild]].map(([name, scenario]) =>
-              <tr key={name}><td>{name}</td><td>{Math.min(...counts).toLocaleString()}–{Math.max(...counts).toLocaleString()}</td>
+              <tr key={name}><td>{name}</td><td>{lo.toLocaleString()}–{hi.toLocaleString()}</td>
                 <td>{tonnes(scenario.new_embodied_t_low)}–{tonnes(scenario.new_embodied_t_high)}</td></tr>)}
           </tbody>
         </table>

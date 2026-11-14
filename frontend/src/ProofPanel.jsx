@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { verdictWords, when } from "./format.js";
 
 // Everything here comes from work/proof.json (python -m scripts.run_validation).
@@ -38,11 +37,8 @@ function CaseRow({ c }) {
   </li>;
 }
 
-export default function ProofPanel() {
-  const [proof, setProof] = useState(undefined);
-  useEffect(() => {
-    fetch("/api/proof").then(r => r.ok ? r.json() : null).then(setProof).catch(() => setProof(null));
-  }, []);
+// proof comes from App (one fetch of /api/proof), so the header and this panel always agree
+export default function ProofPanel({ proof }) {
   if (proof === undefined) return <div className="panel"><div className="skeleton-block tall" /></div>;
   if (!proof) return <div className="panel empty">No validation run yet. Run <code>python -m scripts.run_validation</code>.</div>;
 

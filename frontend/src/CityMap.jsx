@@ -23,7 +23,7 @@ const DIM = {
   landuse_residential: { "fill-color": "#0e1013" },
   landcover_wood: { "fill-color": "#0f1316" },
   landuse_park: { "fill-color": "#0f1316" },
-  building: { "fill-color": "#13161a" },
+  building: { "fill-color": "#14171b" },
   highway_minor: { "line-color": "#15181c" },
   highway_major_casing: { "line-color": "#1b1f24" },
   highway_major_inner: { "line-color": "#171a1f" },
@@ -56,16 +56,39 @@ async function loadNightStyle() {
 const FEET_TO_M = 0.3048;
 const LAMP = "#f4bf5f";
 
-// Tower color: lit (clears the financial screen) > dark glass (doesn't yet) > dimmed (filtered out).
-// The selected tower is a shade brighter so it reads against its neighbours.
-function towerColor(selectedId) {
-  const selected = ["==", ["get", "id"], selectedId ?? ""];
+// Window textures for the towers. One 16 x 16 tile holds four windows; a lit tower has most of them on,
+// a dark tower has one faint one, so the city reads as "offices at night" rather than grey boxes.
+const WINDOWS = {
+  "win-lit":     { wall: "#3a2c14", panes: ["#f6c461", "#ffd98c", "#5b4521", "#eaa944"] },
+  "win-lit-hi":  { wall: "#4d3a19", panes: ["#ffd27a", "#ffe4ad", "#8a6a33", "#ffc458"] },
+  "win-dark":    { wall: "#272e37", panes: ["#38424e", "#38424e", "#4d4230", "#38424e"] },
+  "win-dark-hi": { wall: "#3b4551", panes: ["#5c6878", "#5c6878", "#7d6c4b", "#5c6878"] },
+  "win-off":     { wall: "#181c21", panes: ["#21272e", "#21272e", "#21272e", "#21272e"] },
+};
+
+function windowImage({ wall, panes }) {
+  const scale = 2, size = 16 * scale;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = wall;
+  ctx.fillRect(0, 0, size, size);
+  panes.forEach((color, i) => {
+    ctx.fillStyle = color;
+    ctx.fillRect((2 + (i % 2) * 8) * scale, (2 + Math.floor(i / 2) * 8) * scale, 5 * scale, 5 * scale);
+  });
+  return { image: ctx.getImageData(0, 0, size, size), pixelRatio: scale };
+}
+
+// Lit towers clear the financial screen; the hovered or selected one is a shade brighter
+function towerPattern(activeIds) {
+  const active = ["in", ["get", "id"], ["literal", activeIds.filter(Boolean)]];
   return [
     "case",
-    ["boolean", ["get", "map_only"], false], "#1b1f24",
-    ["boolean", ["get", "gated_out"], false], ["case", selected, "#4a525c", "#1d2228"],
-    ["boolean", ["get", "lit"], false], ["case", selected, "#ffd47e", "#eeb04a"],
-    ["case", selected, "#8a95a3", "#3a434e"],
+    ["boolean", ["get", "map_only"], false], "win-off",
+    ["boolean", ["get", "gated_out"], false], ["case", active, "win-dark-hi", "win-off"],
+    ["boolean", ["get", "lit"], false], ["case", active, "win-lit-hi", "win-lit"],
+    ["case", active, "win-dark-hi", "win-dark"],
   ];
 }
 
@@ -83,12 +106,15 @@ function glowPoints(data) {
 
 const CAMERA = { pitch: 58, bearing: -24 };
 
-export default function CityMap({ data, selectedId, onSelect }) {
+export default function CityMap({ data, selectedId, hoveredId, onSelect, onHover }) {
   const container = useRef(null);
   const map = useRef(null);
+  const pins = useRef(new Map());
   const [ready, setReady] = useState(false);
   const latestData = useRef(data);
   latestData.current = data;
+  const handlers = useRef({ onSelect, onHover });
+  handlers.current = { onSelect, onHover };
 
   // Create the map once, after we know which basemap style we can load
   useEffect(() => {
@@ -106,7 +132,7 @@ export default function CityMap({ data, selectedId, onSelect }) {
       });
       map.current = instance;
       instance.once("load", () => {
-        addBuildings(instance, latestData.current, onSelect);
+        addBuildings(instance, latestData.current, handlers, pins.current);
         setReady(true);
       });
     });
@@ -114,36 +140,51 @@ export default function CityMap({ data, selectedId, onSelect }) {
       cancelled = true;
       instance?.remove();
       map.current = null;
+      pins.current.clear();
     };
   }, []);
 
-  // Recolor when a slider changes; lit towers also light their labels
+  // Recolor when a slider changes. Airbnb-style tiers: lit towers get a full pin with their home count,
+  // the rest a mini-pin, so attention goes to the towers that work.
   useEffect(() => {
     const instance = map.current;
     if (!ready || !instance) return;
     instance.getSource("buildings")?.setData(data);
     instance.getSource("glow")?.setData(glowPoints(data));
-    const lit = new Set(data.features.filter(f => f.properties.lit).map(f => f.properties.id));
-    for (const label of instance.getContainer().querySelectorAll(".building-label"))
-      label.dataset.lit = String(lit.has(label.dataset.id));
+    for (const { properties: p } of data.features) {
+      const pin = pins.current.get(p.id);
+      if (!pin) continue;
+      pin.dataset.lit = String(Boolean(p.lit));
+      pin.dataset.off = String(Boolean(p.gated_out || p.map_only));
+    }
   }, [data, ready]);
 
-  // Fly to the selected building once the towers are on the map
+  // Hover and selection: brighter windows, and a pin that shows the name
   useEffect(() => {
     const instance = map.current;
     if (!ready || !instance) return;
-    instance.setPaintProperty("buildings-3d", "fill-extrusion-color", towerColor(selectedId));
-    for (const label of instance.getContainer().querySelectorAll(".building-label"))
-      label.setAttribute("aria-pressed", String(label.dataset.id === selectedId));
+    instance.setPaintProperty("buildings-3d", "fill-extrusion-pattern", towerPattern([selectedId, hoveredId]));
+    for (const [id, pin] of pins.current) {
+      const active = id === selectedId || id === hoveredId;
+      pin.dataset.active = String(active);
+      pin.setAttribute("aria-pressed", String(id === selectedId));
+      pin.style.zIndex = active ? "3" : pin.dataset.lit === "true" ? "2" : "1";
+    }
+  }, [selectedId, hoveredId, ready]);
+
+  // Fly to the selected building, or back to all of downtown
+  useEffect(() => {
+    const instance = map.current;
+    if (!ready || !instance) return;
     if (!selectedId) {
-      fitAll(instance, latestData.current, 600);
+      fitAll(instance, latestData.current, 700);
       return;
     }
     const feature = latestData.current.features.find(f => f.properties.id === selectedId);
     if (!feature) return;
     const bounds = new LngLatBounds();
     for (const point of feature.geometry.coordinates[0]) bounds.extend(point);
-    instance.flyTo({ center: bounds.getCenter(), zoom: 16.4, ...CAMERA, duration: 700 });
+    instance.flyTo({ center: bounds.getCenter(), zoom: 16.3, ...CAMERA, duration: 800, essential: true });
   }, [selectedId, ready]);
 
   return <div ref={container} className="map" />;
@@ -155,11 +196,15 @@ function fitAll(map, data, duration) {
     if (!feature.properties.map_only)
       for (const point of feature.geometry.coordinates[0]) bounds.extend(point);
   if (!bounds.isEmpty())
-    map.fitBounds(bounds, { padding: { top: 70, bottom: 210, left: 40, right: 40 }, maxZoom: 16.4, ...CAMERA, duration });
+    map.fitBounds(bounds, { padding: { top: 80, bottom: 200, left: 40, right: 40 }, maxZoom: 16.4, ...CAMERA, duration });
 }
 
-// Our towers go on top of the basemap: height from the data, color from the verdict
-function addBuildings(map, data, onSelect) {
+// Our towers go on top of the basemap: height from the data, texture from the verdict
+function addBuildings(map, data, handlers, pins) {
+  for (const [name, spec] of Object.entries(WINDOWS)) {
+    const { image, pixelRatio } = windowImage(spec);
+    if (!map.hasImage(name)) map.addImage(name, image, { pixelRatio });
+  }
   map.addSource("glow", { type: "geojson", data: glowPoints(data) });
   map.addLayer({
     id: "glow",
@@ -168,7 +213,7 @@ function addBuildings(map, data, onSelect) {
     paint: {
       "circle-color": LAMP,
       "circle-blur": 1,
-      "circle-opacity": 0.42,
+      "circle-opacity": 0.45,
       "circle-pitch-alignment": "map",
       "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 13, 14, 17, 170],
     },
@@ -180,29 +225,44 @@ function addBuildings(map, data, onSelect) {
     source: "buildings",
     paint: {
       "fill-extrusion-height": ["*", ["get", "height_ft"], FEET_TO_M],
-      "fill-extrusion-color": towerColor(null),
-      "fill-extrusion-opacity": 0.96,
+      "fill-extrusion-pattern": towerPattern([]),
+      "fill-extrusion-opacity": 1,
       "fill-extrusion-vertical-gradient": true,
     },
   });
-  map.on("click", "buildings-3d", (e) => onSelect(e.features[0].properties.id));
-  map.on("mouseenter", "buildings-3d", () => (map.getCanvas().style.cursor = "pointer"));
-  map.on("mouseleave", "buildings-3d", () => (map.getCanvas().style.cursor = ""));
+  map.on("click", "buildings-3d", (e) => handlers.current.onSelect(e.features[0].properties.id));
+  map.on("mousemove", "buildings-3d", (e) => {
+    map.getCanvas().style.cursor = "pointer";
+    handlers.current.onHover(e.features[0].properties.id);
+  });
+  map.on("mouseleave", "buildings-3d", () => {
+    map.getCanvas().style.cursor = "";
+    handlers.current.onHover(null);
+  });
 
-  for (const [index, { geometry, properties }] of data.features.entries()) {
+  for (const { geometry, properties: p } of data.features) {
     const footprint = new LngLatBounds();
     for (const position of geometry.coordinates[0]) footprint.extend(position);
-    const label = document.createElement("button");
-    label.type = "button";
-    label.dataset.id = properties.id;
-    label.dataset.lit = String(Boolean(properties.lit));
-    label.className = "building-label";
-    label.textContent = String(index + 1);
-    label.title = properties.name + (properties.indicative ? " · indicative" : "");
-    label.setAttribute("aria-label", label.title);
-    label.onclick = () => onSelect(properties.id);
-    new Marker({ element: label, anchor: "top", offset: [0, 6] })
-      .setLngLat(footprint.getCenter()).addTo(map);
+    const pin = document.createElement("button");
+    pin.type = "button";
+    pin.className = "pin";
+    pin.dataset.id = p.id;
+    pin.dataset.lit = String(Boolean(p.lit));
+    pin.dataset.off = String(Boolean(p.gated_out || p.map_only));
+    pin.dataset.active = "false";
+    pin.setAttribute("aria-label", `${p.name}${p.homes != null ? `, ${p.homes} homes at 36 ft` : ""}`);
+    const name = document.createElement("span");
+    name.className = "pin-name";
+    name.textContent = p.name;
+    const homes = document.createElement("span");
+    homes.className = "pin-homes";
+    homes.textContent = p.homes == null ? "" : `${p.homes.toLocaleString()} homes`;
+    pin.append(name, homes);
+    pin.onclick = () => handlers.current.onSelect(p.id);
+    pin.onmouseenter = () => handlers.current.onHover(p.id);
+    pin.onmouseleave = () => handlers.current.onHover(null);
+    new Marker({ element: pin, anchor: "top", offset: [0, 8] }).setLngLat(footprint.getCenter()).addTo(map);
+    pins.set(p.id, pin);
   }
   fitAll(map, data, 0);
 }
