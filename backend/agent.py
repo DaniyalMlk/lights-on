@@ -205,7 +205,8 @@ SUBAGENTS = [
         "system_prompt": (
             "Call get_results once with the building id, then write a 200-word memo and a short owner email about "
             "that one building. Use only facts and numbers from get_results, rounded for a reader: money like $38.6M "
-            "or $107 per SF, shares like 62%, areas like 359,962 SF, whole homes. No dates, years, names or numbers "
+            "or $107 per SF, shares like 62%, areas like 359,962 SF, whole homes. Call each number by its label in "
+            "get_results (vacancy is vacancy, daylight share is daylight share). No dates, years, names or numbers "
             "that aren't there. Return the full memo and email text."
         ),
         "tools": [get_results],

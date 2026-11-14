@@ -63,3 +63,13 @@ def test_only_years_and_ids_are_skipped():
     assert out["values"]["rejected"] == []                # 20 matches stories; it is checked, not skipped
     assert [s["reason"] for s in out["values"]["skipped"]] == ["year"]
     assert rejected("A 23-story tower.") == ["23"]
+
+
+def test_the_standard_home_depth_passes():
+    from backend.pipeline import analyze
+    import json
+    from pathlib import Path
+    sample = json.loads((Path(__file__).resolve().parent.parent / "backend" / "sample_buildings.json").read_text())["buildings"][0]
+    r = analyze(sample, save=False)
+    out = verify("86% of the floor is within 36 feet of a window.", r)
+    assert out["status"] == "success", out["values"]["rejected"]

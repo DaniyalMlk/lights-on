@@ -109,6 +109,8 @@ def analyze(b: dict, save: bool = True, use_scan: bool = True) -> dict:
 
     geometry_out = {
         "plate_sf": round(plate.area),
+        "base_depth_ft": C.BASE_DEPTH_FT,                   # saved so a memo may say "at 36 ft" and pass the verifier
+        "depths_ft": list(C.DEPTHS_FT),
         "plate_source": "matterport_scan" if scan else "footprint",
         "scan_model_id": scan["model_id"] if scan else None,
         "scan_matched_by": scan["matched_by"] if scan else None,
