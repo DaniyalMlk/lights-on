@@ -82,3 +82,15 @@ def test_text_from_a_list_of_parts():
     assert A._text("plain") == "plain"
     events = A._events_from_update((), {"messages": [AIMessage(content=parts)]})
     assert events == [{"type": "message", "who": "orchestrator", "text": "Memo: 12 homes."}]
+
+
+def test_verifier_error_without_rejected_numbers_does_not_crash_the_trace():
+    from langchain_core.messages import ToolMessage
+    unknown = ToolMessage(content=json.dumps({"status": "error", "summary": "unknown building Sample A"}),
+                          name="verify_numbers", tool_call_id="c1")
+    events = A._events_from_update((), {"messages": [unknown]})
+    assert [e["type"] for e in events] == ["tool_result"]
+    rejected = ToolMessage(content=json.dumps({"status": "error", "summary": "1 rejected",
+                                               "values": {"rejected": [{"text": "$9"}]}}),
+                           name="verify_numbers", tool_call_id="c2")
+    assert A._events_from_update((), {"messages": [rejected]})[0] == {"type": "verifier_rejection", "rejected": [{"text": "$9"}]}

@@ -141,7 +141,7 @@ def verify_numbers(building_id: str, text: str) -> str:
     """Check that every number in a draft comes from /work/<building_id>/. Returns rejected numbers with fixes."""
     if building_id not in _buildings():
         return json.dumps({"status": "error", "summary": f"unknown building {building_id}",
-                           "next_actions": ["call find_candidates to get valid ids"]})
+                           "next_actions": ["pass the building id from the task (like SAMPLE-1), not its name"]})
     work = load_result(building_id) or {}
     return json.dumps(verify(text, work))
 
@@ -177,7 +177,8 @@ SUBAGENTS = [
     {
         "name": "verifier",
         "description": "Rejects any number in a draft that isn't in the saved tool outputs.",
-        "system_prompt": "Call verify_numbers on the draft. Return the rejected numbers and their fixes, or 'approved'.",
+        "system_prompt": ("Call verify_numbers with the building id from your task (like SAMPLE-1, not the building's "
+                          "name) and the full draft text. Return the rejected numbers and their fixes, or 'approved'."),
         "tools": [verify_numbers],
     },
 ]
@@ -274,8 +275,9 @@ def _events_from_update(namespace: tuple, update: dict) -> list[dict]:
             summary = _text(m.content)
             try:
                 parsed = json.loads(summary)
-                if m.name == "verify_numbers" and parsed.get("status") == "error":
-                    events.append({"type": "verifier_rejection", "rejected": parsed["values"]["rejected"]})
+                rejected = (parsed.get("values") or {}).get("rejected") if m.name == "verify_numbers" else None
+                if rejected:                         # an "unknown building" error has no rejected numbers
+                    events.append({"type": "verifier_rejection", "rejected": rejected})
                 summary = f"{parsed.get('status', '')}: {parsed.get('summary', '')}"
             except (ValueError, AttributeError):
                 summary = summary[:300]
