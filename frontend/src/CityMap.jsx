@@ -5,10 +5,17 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 // Let Vite bundle MapLibre's web worker so it works in dev and in the production build
 setWorkerUrl(workerUrl);
 
-const OFFLINE_STYLE = {
+const NIGHT_STYLE = {
   version: 8,
-  sources: {},
-  layers: [{ id: "background", type: "background", paint: { "background-color": "#111318" } }],
+  sources: {
+    streets: {
+      type: "raster",
+      tiles: ["https://basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    },
+  },
+  layers: [{ id: "background", type: "background", paint: { "background-color": "#141d27" } }, { id: "streets", type: "raster", source: "streets", paint: { "raster-opacity": 0.72 } }],
 };
 
 const FEET_TO_M = 0.3048;
@@ -22,7 +29,7 @@ export default function CityMap({ data, selectedId, onSelect }) {
   useEffect(() => {
     const instance = new MapLibreMap({
       container: container.current,
-      style: OFFLINE_STYLE,
+      style: NIGHT_STYLE,
       center: [-95.366, 29.757],
       zoom: 15,
       pitch: 55,
@@ -76,7 +83,7 @@ function addBuildings(map, data, onSelect) {
         ["boolean", ["get", "map_only"], false], "#8794a7",
         ["get", "gated_out"], "#9aa0a6",
         ["get", "lit"], "#ffc857",
-        "#2b2d42",
+        "#526786",
       ],
       "fill-extrusion-opacity": 0.9,
     },

@@ -66,16 +66,17 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>Lights On</h1>
-        <p>Which empty Houston office towers deserve a conversion study?</p>
-      </header>
+        <h1><i aria-hidden="true">▥</i> Lights On</h1>
+        <p>Office-to-housing screening</p>
+      <small>Houston, TX</small></header>
 
       <div className="layout">
         <div className="map-wrap">
           {mapData && <CityMap key={resetKey} data={mapData} selectedId={selectedId} onSelect={selectBuilding} />}
-          <div className="controls">
+          <div className="map-title"><small>Conversion atlas</small><h2>Houston after dark</h2></div>
+          <div className="controls"><h3>Scenario settings</h3>
             <button className="reset" onClick={() => restoreView(buildings)}>Reset view</button>
-            <div className="map-key"><span>Gold: covers basis</span> · Navy: below basis or unavailable · Gray: filtered or indicative location</div>
+            <div className="map-key"><span>Covers basis</span><span>Below basis / unavailable</span><span>Filtered / indicative</span></div>
             <label>
               Incentive: ${incentive}/SF
               <input type="range" min="0" max="250" step="5" value={incentive}
@@ -86,7 +87,7 @@ export default function App() {
               <input type="range" min="0" max="90" step="5" value={vacancyGate}
                      onChange={(e) => setVacancyGate(Number(e.target.value))} />
             </label>
-            <span>{litHomes.toLocaleString()} homes in towers that pencil (screening estimate)</span>
+            <div className="screen-total"><b>{mapData ? litHomes.toLocaleString() : "—"}</b> homes pass the financial screen</div>
           </div>
         </div>
 
