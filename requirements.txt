@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+shapely>=2.1
+pyproj
+numpy
+deepagents
+langchain-mcp-adapters
+pytest
+httpx

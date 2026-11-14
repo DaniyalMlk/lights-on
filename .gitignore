@@ -1,0 +1,16 @@
+# Secrets and data (CoStar data is licensed for the hackathon only: never commit it)
+.env
+data/
+work/
+
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+.DS_Store

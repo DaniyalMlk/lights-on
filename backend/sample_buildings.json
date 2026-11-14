@@ -1,0 +1,177 @@
+{
+ "note": "Synthetic placeholder buildings for development. Not real properties. Replace with CoStar data (kept in data/, never committed).",
+ "buildings": [
+  {
+   "id": "SAMPLE-1",
+   "name": "Sample A (narrow slab)",
+   "stories": 20,
+   "height_ft": 260,
+   "vacancy": 0.62,
+   "mf_rent_psf_month": 2.55,
+   "office_rent_psf_year": 24.0,
+   "assessed_value": 18000000,
+   "year_built": 1972,
+   "footprint": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -95.3657695,
+       29.7567188
+      ],
+      [
+       -95.366006,
+       29.7573457
+      ],
+      [
+       -95.3662305,
+       29.7572812
+      ],
+      [
+       -95.365994,
+       29.7566543
+      ],
+      [
+       -95.3657695,
+       29.7567188
+      ]
+     ]
+    ]
+   },
+   "typical_floor_sf": 18000,
+   "rba": null,
+   "synthetic": true
+  },
+  {
+   "id": "SAMPLE-2",
+   "name": "Sample B (deep square)",
+   "stories": 32,
+   "height_ft": 430,
+   "vacancy": 0.48,
+   "mf_rent_psf_month": 2.55,
+   "office_rent_psf_year": 27.0,
+   "assessed_value": 52000000,
+   "year_built": 1981,
+   "footprint": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -95.3627476,
+       29.7578561
+      ],
+      [
+       -95.3629348,
+       29.7583524
+      ],
+      [
+       -95.3635037,
+       29.758189
+      ],
+      [
+       -95.3633164,
+       29.7576927
+      ],
+      [
+       -95.3627476,
+       29.7578561
+      ]
+     ]
+    ]
+   },
+   "typical_floor_sf": 36100,
+   "rba": null,
+   "synthetic": true
+  },
+  {
+   "id": "SAMPLE-3",
+   "name": "Sample C (L-shape)",
+   "stories": 24,
+   "height_ft": 300,
+   "vacancy": 0.41,
+   "mf_rent_psf_month": 2.45,
+   "office_rent_psf_year": 22.0,
+   "assessed_value": 21000000,
+   "year_built": 1968,
+   "footprint": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -95.3683176,
+       29.7585851
+      ],
+      [
+       -95.367659,
+       29.7587743
+      ],
+      [
+       -95.36773,
+       29.7589624
+      ],
+      [
+       -95.368173,
+       29.7588351
+      ],
+      [
+       -95.3682992,
+       29.7591695
+      ],
+      [
+       -95.3685147,
+       29.7591076
+      ],
+      [
+       -95.3683176,
+       29.7585851
+      ]
+     ]
+    ]
+   },
+   "typical_floor_sf": 25056,
+   "rba": null,
+   "synthetic": true
+  },
+  {
+   "id": "SAMPLE-4",
+   "name": "Sample D (mid plate)",
+   "stories": 28,
+   "height_ft": 380,
+   "vacancy": 0.22,
+   "mf_rent_psf_month": 2.5,
+   "office_rent_psf_year": 30.0,
+   "assessed_value": 60000000,
+   "year_built": 1985,
+   "footprint": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -95.3645525,
+       29.7545899
+      ],
+      [
+       -95.3647249,
+       29.755047
+      ],
+      [
+       -95.3650841,
+       29.7549438
+      ],
+      [
+       -95.3649117,
+       29.7544867
+      ],
+      [
+       -95.3645525,
+       29.7545899
+      ]
+     ]
+    ]
+   },
+   "typical_floor_sf": 21000,
+   "rba": null,
+   "synthetic": true
+  }
+ ]
+}
