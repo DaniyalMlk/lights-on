@@ -77,9 +77,16 @@ export default function CityMap({ data, selectedId, onSelect }) {
   // Fly to the selected building once the towers are on the map
   useEffect(() => {
     const instance = map.current;
-    if (!selectedId || !ready || !instance) return;
+    if (!ready || !instance) return;
     const labels = instance.getContainer().querySelectorAll(".building-label");
     for (const label of labels) label.setAttribute("aria-pressed", String(label.dataset.id === selectedId));
+    if (!selectedId) {
+      const bounds = new LngLatBounds();
+      for (const feature of latestData.current.features)
+        for (const point of feature.geometry.coordinates[0]) bounds.extend(point);
+      if (!bounds.isEmpty()) instance.fitBounds(bounds, { padding: 100, maxZoom: 17, pitch: 55, bearing: -20, duration: 450 });
+      return;
+    }
     const feature = latestData.current.features.find(f => f.properties.id === selectedId);
     if (!feature) return;
     const bounds = new LngLatBounds();
@@ -114,7 +121,7 @@ function addBuildings(map, data, onSelect) {
   map.on("mouseleave", "buildings-3d", () => (map.getCanvas().style.cursor = ""));
 
   const bounds = new LngLatBounds();
-  for (const { geometry, properties } of data.features) {
+  for (const [index, { geometry, properties }] of data.features.entries()) {
     const footprint = new LngLatBounds();
     for (const position of geometry.coordinates[0]) footprint.extend(position);
     bounds.extend(footprint);
@@ -122,7 +129,9 @@ function addBuildings(map, data, onSelect) {
     label.type = "button";
     label.dataset.id = properties.id;
     label.className = "building-label";
-    label.textContent = properties.name + (properties.indicative ? " · indicative" : "");
+    label.textContent = String(index + 1);
+    label.title = properties.name + (properties.indicative ? " · indicative" : "");
+    label.setAttribute("aria-label", label.title);
     label.onclick = () => onSelect(properties.id);
     new Marker({ element: label, anchor: "top", offset: [0, 4] })
       .setLngLat(footprint.getCenter()).addTo(map);

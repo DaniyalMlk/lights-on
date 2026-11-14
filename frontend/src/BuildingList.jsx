@@ -7,12 +7,13 @@ function rank({ properties: p }) {
 }
 
 export default function BuildingList({ features, selectedId, onSelect, error }) {
+  const numbers = new Map(features?.map((feature, index) => [feature.properties.id, index + 1]));
   return <section className="catalog" aria-label="Building list">
-    <h2>Buildings</h2>
+    <h2>All candidates</h2>
     {error ? "Building data unavailable." : !features ? "Loading buildings…" : !features.length ? "No buildings available." :
       [...features].sort((a, b) => rank(a) - rank(b)).map(({properties: p}) =>
         <button key={p.id} aria-pressed={selectedId === p.id} onClick={() => onSelect(p.id)}>
-          <strong>{p.name}</strong><span>{p.homes == null ? "Indicative location" : p.homes + " homes at 36 ft"} · {p.label}</span>
+          <strong><small>{numbers.get(p.id)}</small>{p.name}</strong><i aria-hidden="true">↗</i><span>{p.homes == null ? "Indicative location" : p.homes + " homes at 36 ft"} · {p.label}</span>
         </button>)}
   </section>;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import AnimatedNumber from "./AnimatedNumber.jsx";
 import ScanPanel from "./ScanPanel.jsx";
 import StudyDetails from "./StudyDetails.jsx";
 
@@ -38,6 +39,7 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
       <h2>{building.name}</h2>
       <p className="muted">{building.stories} stories{building.synthetic ? " · sample data, not a real building" : ""}</p>
 
+      <div className="home-count"><b><AnimatedNumber value={depths[depth].homes} /></b><span>potential homes at {depth} ft</span></div>
       <h3>Indicative layout</h3>
       <div className="depths" aria-label="Unit depth">{[30,36,42].map(d =>
         <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>{d} ft</button>)}</div>

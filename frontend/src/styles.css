@@ -114,3 +114,44 @@ body {background:var(--night);color:#edf2f6}
 .event,.panel details {background:var(--surface);padding:10px 12px;border-radius:6px}.panel summary {font-weight:600}.panel .primary {color:#171b20;background:var(--gold)}
 .plate {background:#0c141b;border:1px solid var(--line)}.building-label {border-radius:20px;padding:4px 10px;font-size:12px}.building-label[aria-pressed=true]{border-color:var(--gold)}
 @media(max-width:760px){.layout{display:flex;flex-direction:column;height:auto}.map-wrap{height:65svh;min-height:420px}.side{border-left:0}.panel{overflow:visible}.topbar{gap:8px;padding:0 14px}.topbar p{font-size:12px;padding-left:8px}.controls{left:12px;bottom:26px}.map-title{left:16px}.catalog{max-height:240px}}
+
+/* Map workspace and candidate inspector */
+:root { --night:#101518; --surface:#20292d; --line:#344045; --muted:#b3bfc2; --gold:#ffcb71; --sans:system-ui,sans-serif; --display:Georgia,serif }
+body,button,input,.building-label {font-family:var(--sans)}
+.topbar {background:var(--night);gap:16px}
+.topbar h1 {display:flex;align-items:center;gap:4px;font-size:23px;white-space:nowrap}
+.topbar em {font-style:normal;color:var(--gold)}
+.window-mark {width:24px;height:27px;margin-right:5px;border:2px solid var(--night);outline:1px solid #926f38;border-radius:2px;background:repeating-linear-gradient(90deg,transparent 0 5px,#141818 5px 7px),repeating-linear-gradient(0deg,var(--gold) 0 6px,#141818 6px 8px)}
+.topbar small,.map-title small,.controls h3,.catalog h2,.panel h3,code {font-family:var(--sans)}
+.headline-total,.home-count {display:flex;align-items:center;gap:12px;font-variant-numeric:tabular-nums}
+.headline-total {margin-left:auto}.headline-total b,.home-count b {color:var(--gold);font-weight:600;letter-spacing:-.05em}
+.headline-total b {font-size:28px}.headline-total>span {font-size:11px;color:var(--muted);line-height:1.25}
+.topbar small {margin-left:8px}
+.map-title h2,.panel h2,.catalog h2 {font:normal clamp(29px,3vw,48px)/1.1 var(--display);text-transform:none;letter-spacing:-.045em}
+.map-title small {letter-spacing:.16em}
+.controls {width:370px;background:#182125f5;gap:10px 18px;border-color:#455158;border-radius:12px}
+.controls h3 {font-size:13px;text-transform:none;letter-spacing:0;color:#fff}
+.controls .reset {font-size:12px;padding:4px 10px}
+.controls label {min-width:0;font-size:12px}.controls label>span {display:flex;justify-content:space-between;gap:4px}
+.controls label b {color:var(--gold)}.controls input {margin:0;cursor:pointer}
+.map-key {grid-row:3;padding-top:8px;border-top:1px solid var(--line);font-size:10px;gap:6px 10px}
+.side {background:#182125;overflow:hidden}
+.catalog {background:transparent;border:0;max-height:none;padding:24px;animation:sheet-in .24s ease-out}
+.catalog h2 {font-size:32px;color:#f1f2ed;margin:0 0 20px}
+.catalog button {position:relative;margin:0;padding:18px 26px 18px 0;border:0;border-top:1px solid var(--line)}
+.catalog button strong {font-size:16px}.catalog button span {color:var(--muted);line-height:1.5}
+.catalog i {position:absolute;right:6px;top:18px;font-style:normal;color:var(--gold)}
+.side-head {padding:16px 20px;border-bottom:1px solid var(--line)}
+.reset {background:transparent;border-color:#445259;border-radius:7px}
+.tabs {gap:4px;padding:8px 16px;background:transparent;border-color:var(--line)}
+.tabs button {flex:0 1 auto;border-radius:7px;padding:8px 14px;font-size:14px}
+.tabs button.active,.panel .depths button[aria-pressed=true] {background:#40372a;border:0;color:var(--gold)}
+.sheet {overflow:auto;min-height:0;animation:sheet-in .26s cubic-bezier(.2,.7,.3,1)}
+.sheet .panel {overflow:visible;padding:24px;overflow-wrap:anywhere}
+.panel h2 {font-size:32px}.panel p {margin:8px 0 16px}.panel h3 {text-transform:none;letter-spacing:.01em;font-size:14px}
+.home-count {background:#253034;border-radius:8px;padding:12px 16px;margin:16px 0}.home-count b {font-size:32px}.home-count>span {color:var(--muted);font-size:13px}
+@keyframes sheet-in {from {opacity:.4;transform:translateX(12px)} to {opacity:1;transform:translateX(0)}}
+@media(max-width:760px){.topbar p,.topbar small {display:none}.topbar{height:58px}.controls{width:min(370px,calc(100% - 24px))}.catalog{max-height:none}.sheet{overflow:visible}.map-title h2{font-size:34px}}
+@media(prefers-reduced-motion:reduce){.sheet,.catalog{animation:none}}
+.building-label,.catalog strong small {border-radius:50%;width:25px;height:25px;line-height:23px;text-align:center;padding:0;font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}
+.catalog strong small {display:inline-block;border:1px solid #46545a;color:var(--gold);margin-right:9px}
