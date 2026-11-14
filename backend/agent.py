@@ -149,21 +149,19 @@ def get_results(building_id: str) -> str:
     g, e, b = r["geometry"], r.get("econ") or {}, r["building"]
     base = g["by_depth"][str(C.BASE_DEPTH_FT)]
     cases = e.get("cases", {})
-    inputs = e.get("inputs") or {}
-    reference_key = next((k for k in inputs if k.startswith("reference_value")), None)
+    # Only our own results and public facts. Raw CoStar values (vacancy, rents, prices, floor areas) stay out:
+    # CoStar's terms keep them off anything we show, so the writer never gets them.
+    measured_plate = g.get("plate_source") == "matterport_scan" or b.get("footprint_origin") == "vexcel"
     values = {
-        "building": {k: b.get(k) for k in ("id", "name", "address", "stories", "vacancy")},
+        "building": {k: b.get(k) for k in ("id", "name", "address", "stories")},
         "homes_by_depth_ft": {d: v["homes"] for d, v in g["by_depth"].items()},
         "homes_per_floor_at_36_ft": base["homes_per_floor"], "residential_floors": g["residential_floors"],
         "daylight_share_at_36_ft": base["daylight_share"], "deep_plate": g["deep_plate"],
-        "plate_sf": g["plate_sf"], "gfa_sf": g["gfa_sf"], "plate_from": b.get("footprint_source"),
+        "plate_sf": g["plate_sf"] if measured_plate else None, "plate_from": b.get("footprint_source"),
         "core": g["core_source"],
         "verdict": (e.get("verdict") or {}).get("text"),
         "residual_by_case": {c: v["residual"] for c, v in cases.items()},
         "base_case": {k: cases.get("base", {}).get(k) for k in ("value", "cost", "residual_per_gsf")},
-        "reference_value": inputs.get(reference_key) if reference_key else None,
-        "reference_label": inputs.get("reference_label"),
-        "rent_psf_month": inputs.get("rent_psf_month"),
         "score": r["score"]["total"],
     }
     return json.dumps({"status": "success", "summary": f"saved results for {building_id}", "values": values,
@@ -228,6 +226,7 @@ a building that doesn't work still gets a memo that says why, checked by the ver
 Ask sub-agents only for what the tools compute (homes, daylight share, deep plate, verdict, residual, cost, score).
 Never ask for prices per unit, dates or anything else the tools don't return.
 Give the verifier the writer's full draft, word for word. Your final answer is the approved memo and email.
+Never quote vacancy, rents, prices or floor areas from the data: CoStar's terms keep raw values out of what we show.
 If the verifier rejects a number, send the draft back to the writer once with the fixes, then verify again.
 Never state a number that isn't in a tool output. Ask before writing if data is missing."""
 

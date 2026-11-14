@@ -116,3 +116,5 @@ def test_get_results_gives_the_writer_every_number_in_one_call(tmp_path):
     v = out["values"]
     assert v["homes_by_depth_ft"]["36"] > 0 and v["verdict"] and v["base_case"]["cost"] > 0
     assert json.loads(A.get_results.invoke({"building_id": "Sample A"}))["status"] == "error"
+    text = json.dumps(v)
+    assert "vacancy" not in text and "rent" not in text and "reference" not in text and "gfa" not in text
