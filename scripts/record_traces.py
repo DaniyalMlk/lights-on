@@ -31,6 +31,8 @@ for building_id in ids:
             print(f"   {event['who']}: {event['name']}")
         elif event["type"] == "delegate":
             print(f"   -> {event['to']}")
+        elif event["type"] == "final_check":
+            print(f"   final check in code: {event['summary']}")
         elif event["type"] == "timeout":
             print(f"   timeout ({event.get('seconds')} s)")
         elif event["type"] == "done":

@@ -28,6 +28,10 @@ function EventRow({ e, afterRejection = false }) {
       return <div className="event notice">Live run unavailable ({e.reason}).</div>;
     case "error":
       return <div className="event bad">{e.text}</div>;
+    case "final_check":
+      return <section className={`event ${e.status === "success" ? "" : "rejection"}`}>
+        <strong>Final check in code</strong> {e.summary}
+        {e.rejected?.map((r, i) => <p key={i}>{r.text} · {r.reason}</p>)}</section>;
     case "done":
       return <div className="event muted">Done{e.seconds ? ` in ${e.seconds}s` : ""}.</div>;
     default:

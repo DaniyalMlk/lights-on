@@ -101,5 +101,18 @@ def test_only_a_complete_run_counts():
     passed = {"type": "tool_result", "name": "verify_numbers", "summary": "success: 20 numbers traced, 0 rejected"}
     failed = {"type": "tool_result", "name": "verify_numbers", "summary": "error: 18 numbers traced, 2 rejected"}
     assert A.is_complete(steps + [passed])
+    final_ok = {"type": "final_check", "status": "success", "summary": "12 numbers traced, 0 rejected", "rejected": []}
+    final_bad = {"type": "final_check", "status": "error", "summary": "11 numbers traced, 1 rejected", "rejected": [{}]}
+    assert A.is_complete(steps + [final_ok])
+    assert not A.is_complete(steps + [passed, final_bad])            # the answer shown to the user has a bad number
     assert not A.is_complete(steps[:1] + [passed])                   # stopped after the screener
     assert not A.is_complete(steps + [failed])                       # verifier rejected the draft
+
+
+def test_get_results_gives_the_writer_every_number_in_one_call(tmp_path):
+    A.analyze_building.invoke({"building_id": "SAMPLE-1"})
+    out = json.loads(A.get_results.invoke({"building_id": "SAMPLE-1"}))
+    assert out["status"] == "success"
+    v = out["values"]
+    assert v["homes_by_depth_ft"]["36"] > 0 and v["verdict"] and v["base_case"]["cost"] > 0
+    assert json.loads(A.get_results.invoke({"building_id": "Sample A"}))["status"] == "error"

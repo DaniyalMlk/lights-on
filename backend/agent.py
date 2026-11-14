@@ -137,6 +137,41 @@ def check_matterport(building_id: str) -> str:
 
 
 @tool
+def get_results(building_id: str) -> str:
+    """Every number a memo about this building may use, from its saved tool outputs. Call analyze_building first."""
+    if building_id not in _buildings():
+        return json.dumps({"status": "error", "summary": f"unknown building {building_id}",
+                           "next_actions": ["pass the building id from the task (like SAMPLE-1), not its name"]})
+    r = load_result(building_id)
+    if not r:
+        return json.dumps({"status": "error", "summary": f"no saved results for {building_id}",
+                           "next_actions": ["the analyst must call analyze_building first"]})
+    g, e, b = r["geometry"], r.get("econ") or {}, r["building"]
+    base = g["by_depth"][str(C.BASE_DEPTH_FT)]
+    cases = e.get("cases", {})
+    inputs = e.get("inputs") or {}
+    reference_key = next((k for k in inputs if k.startswith("reference_value")), None)
+    values = {
+        "building": {k: b.get(k) for k in ("id", "name", "address", "stories", "vacancy")},
+        "homes_by_depth_ft": {d: v["homes"] for d, v in g["by_depth"].items()},
+        "homes_per_floor_at_36_ft": base["homes_per_floor"], "residential_floors": g["residential_floors"],
+        "daylight_share_at_36_ft": base["daylight_share"], "deep_plate": g["deep_plate"],
+        "plate_sf": g["plate_sf"], "gfa_sf": g["gfa_sf"], "plate_from": b.get("footprint_source"),
+        "core": g["core_source"],
+        "verdict": (e.get("verdict") or {}).get("text"),
+        "residual_by_case": {c: v["residual"] for c, v in cases.items()},
+        "base_case": {k: cases.get("base", {}).get(k) for k in ("value", "cost", "residual_per_gsf")},
+        "reference_value": inputs.get(reference_key) if reference_key else None,
+        "reference_label": inputs.get("reference_label"),
+        "rent_psf_month": inputs.get("rent_psf_month"),
+        "score": r["score"]["total"],
+    }
+    return json.dumps({"status": "success", "summary": f"saved results for {building_id}", "values": values,
+                       "source": f"/work/{building_id}/",
+                       "next_actions": ["write only from these values; round for a reader, change nothing else"]})
+
+
+@tool
 def verify_numbers(building_id: str, text: str) -> str:
     """Check that every number in a draft comes from /work/<building_id>/. Returns rejected numbers with fixes."""
     if building_id not in _buildings():
@@ -168,12 +203,12 @@ SUBAGENTS = [
         "name": "writer",
         "description": "Writes a short memo and an owner email from the saved results.",
         "system_prompt": (
-            "Read /work/<id>/*.json with your file tools and write a 200-word memo and a short owner email. "
-            "Every number must come from those files, rounded for a reader: money like $38.6M or $107 per SF, "
-            "shares like 62%, areas with commas like 359,962 SF, homes as whole numbers. Rounding is the only "
-            "change allowed: the verifier checks each number against the files."
+            "Call get_results once with the building id, then write a 200-word memo and a short owner email about "
+            "that one building. Use only facts and numbers from get_results, rounded for a reader: money like $38.6M "
+            "or $107 per SF, shares like 62%, areas like 359,962 SF, whole homes. No dates, years, names or numbers "
+            "that aren't there. Return the full memo and email text."
         ),
-        "tools": [],
+        "tools": [get_results],
     },
     {
         "name": "verifier",
@@ -189,7 +224,10 @@ Plan with your todo list. Then: screener -> analyst (top buildings) -> writer ->
 You have no analysis tools yourself: hand each step to its sub-agent with the task tool, and give it the building id.
 Always run all four steps, in order, for every building you are asked about, even when the numbers look bad:
 a building that doesn't work still gets a memo that says why, checked by the verifier.
-If the verifier rejects a number, send the draft back to the writer once with the fixes.
+Ask sub-agents only for what the tools compute (homes, daylight share, deep plate, verdict, residual, cost, score).
+Never ask for prices per unit, dates or anything else the tools don't return.
+Give the verifier the writer's full draft, word for word. Your final answer is the approved memo and email.
+If the verifier rejects a number, send the draft back to the writer once with the fixes, then verify again.
 Never state a number that isn't in a tool output. Ask before writing if data is missing."""
 
 
@@ -318,6 +356,15 @@ def stream_agent(goal: str, building_id: str | None = None, limit_s: int = TRACE
             yield {"type": "timeout", "seconds": limit_s}
             return
 
+    final = next((e["text"] for e in reversed(events) if e["type"] == "message" and e["who"] == "orchestrator"), "")
+    if building_id and final:
+        # The answer the user sees is checked by code, not by a model: same verifier, on the final text.
+        check = verify(final, load_result(building_id) or {})
+        event = {"type": "final_check", "status": check["status"], "summary": check["summary"],
+                 "rejected": check["values"]["rejected"]}
+        events.append(event)
+        yield event
+
     now = datetime.now(timezone.utc)
     record = {"recorded_at": now.isoformat(timespec="seconds"), "model": str(os.environ.get("LIGHTS_ON_MODEL")),
               "goal": prompt, "tokens": tokens, "complete": is_complete(events), "events": events}
@@ -330,11 +377,16 @@ def stream_agent(goal: str, building_id: str | None = None, limit_s: int = TRACE
 
 
 def is_complete(events: list[dict]) -> bool:
-    """A run worth replaying: all four sub-agents were used and the verifier passed the draft."""
+    """A run worth replaying: all four sub-agents were used and the final answer passed the check in code
+    (or, for a run without one building, the verifier passed the draft)."""
     delegated = {e.get("to") for e in events if e["type"] == "delegate"}
-    verified = any(e["type"] == "tool_result" and e["name"] == "verify_numbers" and e["summary"].startswith("success")
-                   for e in events)
-    return {"screener", "analyst", "writer", "verifier"} <= delegated and verified
+    final = [e for e in events if e["type"] == "final_check"]
+    if final:
+        checked = final[-1]["status"] == "success"
+    else:
+        checked = any(e["type"] == "tool_result" and e["name"] == "verify_numbers" and e["summary"].startswith("success")
+                      for e in events)
+    return {"screener", "analyst", "writer", "verifier"} <= delegated and checked
 
 
 def replay_trace(building_id: str | None):
