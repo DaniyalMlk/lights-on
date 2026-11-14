@@ -150,7 +150,8 @@ SUBAGENTS = [
     {
         "name": "screener",
         "description": "Finds office buildings that pass the vacancy gate.",
-        "system_prompt": "You shortlist buildings. Call find_candidates and return the ids. Do not analyze.",
+        "system_prompt": ("You shortlist buildings. Call find_candidates and return only the ids and vacancies. "
+                          "Do not read files, analyze or judge: that is the analyst's job."),
         "tools": [find_candidates],
     },
     {
@@ -185,7 +186,9 @@ SUBAGENTS = [
 
 INSTRUCTIONS = """You help a credit analyst decide which empty downtown Houston offices can become apartments.
 Plan with your todo list. Then: screener -> analyst (top buildings) -> writer -> verifier.
-You have no analysis tools yourself: hand each step to its sub-agent with the task tool.
+You have no analysis tools yourself: hand each step to its sub-agent with the task tool, and give it the building id.
+Always run all four steps, in order, for every building you are asked about, even when the numbers look bad:
+a building that doesn't work still gets a memo that says why, checked by the verifier.
 If the verifier rejects a number, send the draft back to the writer once with the fixes.
 Never state a number that isn't in a tool output. Ask before writing if data is missing."""
 
@@ -315,12 +318,23 @@ def stream_agent(goal: str, building_id: str | None = None, limit_s: int = TRACE
             yield {"type": "timeout", "seconds": limit_s}
             return
 
-    record = {"recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-              "model": str(os.environ.get("LIGHTS_ON_MODEL")), "goal": prompt, "tokens": tokens, "events": events}
+    now = datetime.now(timezone.utc)
+    record = {"recorded_at": now.isoformat(timespec="seconds"), "model": str(os.environ.get("LIGHTS_ON_MODEL")),
+              "goal": prompt, "tokens": tokens, "complete": is_complete(events), "events": events}
     path = trace_path(building_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record, indent=1))
-    yield {"type": "done", "seconds": round(time.time() - started, 1)}
+    (path.parent / f"trace_{now:%Y%m%d-%H%M%S}.json").write_text(json.dumps(record, indent=1))   # every run is kept
+    if record["complete"] or not path.exists():
+        path.write_text(json.dumps(record, indent=1))      # the replay only gets replaced by a complete run
+    yield {"type": "done", "seconds": round(time.time() - started, 1), "complete": record["complete"]}
+
+
+def is_complete(events: list[dict]) -> bool:
+    """A run worth replaying: all four sub-agents were used and the verifier passed the draft."""
+    delegated = {e.get("to") for e in events if e["type"] == "delegate"}
+    verified = any(e["type"] == "tool_result" and e["name"] == "verify_numbers" and e["summary"].startswith("success")
+                   for e in events)
+    return {"screener", "analyst", "writer", "verifier"} <= delegated and verified
 
 
 def replay_trace(building_id: str | None):

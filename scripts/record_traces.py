@@ -31,9 +31,14 @@ for building_id in ids:
             print(f"   {event['who']}: {event['name']}")
         elif event["type"] == "delegate":
             print(f"   -> {event['to']}")
-        elif event["type"] in ("timeout", "done"):
-            print(f"   {event['type']} ({event.get('seconds')} s)")
-    saved = trace_path(building_id)
-    if saved.exists():
-        tokens = json.loads(saved.read_text()).get("tokens", {})
+        elif event["type"] == "timeout":
+            print(f"   timeout ({event.get('seconds')} s)")
+        elif event["type"] == "done":
+            verdict = "complete, saved as the replay" if event.get("complete") else \
+                "INCOMPLETE (a step was skipped or the verifier didn't pass): kept the previous replay"
+            print(f"   done ({event.get('seconds')} s): {verdict}")
+    runs = sorted(trace_path(building_id).parent.glob("trace_*.json"))
+    if runs:
+        tokens = json.loads(runs[-1].read_text()).get("tokens", {})
+        saved = runs[-1]
         print(f"   tokens: {tokens.get('input', 0):,} in, {tokens.get('output', 0):,} out -> {saved}")

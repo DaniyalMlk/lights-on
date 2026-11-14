@@ -94,3 +94,12 @@ def test_verifier_error_without_rejected_numbers_does_not_crash_the_trace():
                                                "values": {"rejected": [{"text": "$9"}]}}),
                            name="verify_numbers", tool_call_id="c2")
     assert A._events_from_update((), {"messages": [rejected]})[0] == {"type": "verifier_rejection", "rejected": [{"text": "$9"}]}
+
+
+def test_only_a_complete_run_counts():
+    steps = [{"type": "delegate", "to": name} for name in ("screener", "analyst", "writer", "verifier")]
+    passed = {"type": "tool_result", "name": "verify_numbers", "summary": "success: 20 numbers traced, 0 rejected"}
+    failed = {"type": "tool_result", "name": "verify_numbers", "summary": "error: 18 numbers traced, 2 rejected"}
+    assert A.is_complete(steps + [passed])
+    assert not A.is_complete(steps[:1] + [passed])                   # stopped after the screener
+    assert not A.is_complete(steps + [failed])                       # verifier rejected the draft
