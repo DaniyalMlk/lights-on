@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import AnimatedNumber from "./AnimatedNumber.jsx";
 import CityMap from "./CityMap.jsx";
 import BuildingPanel from "./BuildingPanel.jsx";
 import AgentPanel from "./AgentPanel.jsx";
@@ -66,38 +67,40 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1><i aria-hidden="true">▥</i> Lights On</h1>
+        <h1><i aria-hidden="true" className="window-mark" /> Lights <em>On</em></h1>
         <p>Office-to-housing screening</p>
-      <small>Houston, TX</small></header>
+      <div className="headline-total"><b>{mapData ? <AnimatedNumber value={litHomes} /> : "—"}</b><span>Homes passing<br/>the financial screen</span></div><small>Houston, TX</small></header>
 
       <div className="layout">
         <div className="map-wrap">
           {mapData && <CityMap key={resetKey} data={mapData} selectedId={selectedId} onSelect={selectBuilding} />}
           <div className="map-title"><small>Conversion atlas</small><h2>Houston after dark</h2></div>
-          <div className="controls"><h3>Scenario settings</h3>
-            <button className="reset" onClick={() => restoreView(buildings)}>Reset view</button>
-            <div className="map-key"><span>Covers basis</span><span>Below basis / unavailable</span><span>Filtered / indicative</span></div>
+          <div className="controls"><h3>Scenario</h3>
+            <button className="reset" onClick={() => restoreView(buildings)}>Reset</button>
+            <div className="map-key"><span>Covers basis</span><span title="Below basis or unavailable">Below basis / N/A</span><span>Filtered / indicative</span></div>
             <label>
-              Incentive: ${incentive}/SF
+              <span>Incentive <b>${incentive}/SF</b></span>
               <input type="range" min="0" max="250" step="5" value={incentive}
                      onChange={(e) => setIncentive(Number(e.target.value))} />
             </label>
             <label>
-              Vacancy at least {vacancyGate}%
+              <span>Min. vacancy <b>{vacancyGate}%</b></span>
               <input type="range" min="0" max="90" step="5" value={vacancyGate}
                      onChange={(e) => setVacancyGate(Number(e.target.value))} />
             </label>
-            <div className="screen-total"><b>{mapData ? litHomes.toLocaleString() : "—"}</b> homes pass the financial screen</div>
+
           </div>
         </div>
 
         <aside className="side" key={resetKey}>
-          <BuildingList features={mapData?.features} selectedId={selectedId} onSelect={selectBuilding} error={loadError} />
+          {!selectedId && tab !== "Proof" ? <BuildingList features={mapData?.features} selectedId={selectedId} onSelect={selectBuilding} error={loadError} /> : <>
+          <div className="side-head"><button className="reset" onClick={() => selectBuilding(null)}>← All candidates</button></div>
           <nav className="tabs">
             {TABS.map((t) => (
-              <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>{t}</button>
+              <button key={t} aria-pressed={t === tab} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>{t === "Proof" ? "Validation" : t}</button>
             ))}
           </nav>
+          <div className="sheet" key={selectedId + tab}>
           {selected?.map_only && tab !== "Proof" ? (
             <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
           ) : (
@@ -107,6 +110,7 @@ export default function App() {
             </>
           )}
           {tab === "Proof" && <ProofPanel />}
+          </div></>}
         </aside>
       </div>
     </div>
