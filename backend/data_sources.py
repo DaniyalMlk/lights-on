@@ -140,9 +140,3 @@ def load_footprints(geojson_path: str | Path, id_property: str = "PropertyID") -
             geom = {"type": "Polygon", "coordinates": rings}
         out[str(f["properties"][id_property])] = geom
     return out
-
-
-def fetch_vexcel_footprint(lat: float, lon: float) -> dict | None:
-    """TODO: call Vexcel's building/parcel API with VEXCEL_API_KEY and return the footprint polygon.
-    The endpoint is in Vexcel's own quickstart, linked from the Vexcel keys card in Discord."""
-    raise NotImplementedError("Needs the Vexcel building endpoint and response shape")

@@ -96,6 +96,13 @@ def costar_only_plate(b: dict) -> dict:
     return {**b, "footprint": to_lonlat(square)}
 
 
+def plate_name(b: dict, plate_source: str) -> str:
+    """What the "with footprint" run actually used, in words for the Proof tab."""
+    if plate_source == "matterport_scan":
+        return "scanned floor"
+    return "Vexcel outline" if b.get("footprint_origin") == "vexcel" else "square stand-in"
+
+
 def input_sensitivity(buildings: dict) -> list[dict]:
     """Does the real plate change the answer? Shows sensitivity to the layer, not accuracy.
 
@@ -109,6 +116,7 @@ def input_sensitivity(buildings: dict) -> list[dict]:
         key = str(C.BASE_DEPTH_FT)
         rows.append({"building_id": b["id"], "name": b.get("name"),
                      "plate_source": with_fp["geometry"]["plate_source"],
+                     "plate": plate_name(b, with_fp["geometry"]["plate_source"]),
                      "homes_costar_only": without["geometry"]["by_depth"][key]["homes"],
                      "homes_with_footprint": with_fp["geometry"]["by_depth"][key]["homes"],
                      "score_costar_only": without["score"]["total"],

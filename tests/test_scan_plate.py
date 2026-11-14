@@ -86,3 +86,10 @@ def test_input_sensitivity_compares_the_stand_in_with_the_real_plate(monkeypatch
     row = V.input_sensitivity({"777": tower()})[0]
     assert {"save": False, "use_scan": False} in calls and {"save": False} in calls
     assert row["plate_source"] == "matterport_scan"
+    assert row["plate"] == "scanned floor"
+
+
+def test_plate_name_says_which_outline_was_used():
+    assert V.plate_name({"footprint_origin": "vexcel"}, "footprint") == "Vexcel outline"
+    assert V.plate_name({"footprint_origin": "square"}, "footprint") == "square stand-in"
+    assert V.plate_name({"footprint_origin": "vexcel"}, "matterport_scan") == "scanned floor"

@@ -185,5 +185,6 @@ def buildings_from_kit(kit: Path, m: dict, box: tuple = DOWNTOWN) -> tuple[list[
             "reference_source": reference_source,
             "footprint": square_footprint(lat, lon, floor_sf),
             "footprint_source": "a square stand-in sized to the typical floor",
+            "footprint_origin": "square",
         })
     return buildings, skipped

@@ -37,6 +37,13 @@ CoStar building (footprint, stories, vacancy, rent, assessed value)
 - The plate is `matterport.floor_outline()`, the same outline the 3D labels use, so the labels and the analysis can't disagree. A test checks it.
 - `pipeline.scan_plate()` uses the scan as the building's plate only if it's a full floor: at least 85% of the typical floor (the same rule as the 3D labels). A smaller scan is a suite and the footprint stays. The result says which plate was used (`plate_source`, `footprint_source`).
 
+## vexcel.py
+
+- One call per building to Vexcel's property endpoint, at the building's lat/lon. The answer is saved to `data/vexcel/`, so rebuilding the data never calls Vexcel twice.
+- Vexcel returns the parcel and the buildings on it. We take the one marked primary and read its outline (`footprint.wkt`, lon/lat) and its area (`footprint.area`, sq ft).
+- The outline is the building at ground level. A tower with a podium, an attached garage or a shared wall looks much bigger from the air than one office floor. So the outline becomes the plate only if its area is within 15% of CoStar's typical floor. Otherwise the square stand-in stays and the result says so (`footprint_source`).
+- Order of preference for the plate: a saved full-floor scan, then a matching Vexcel outline, then the square stand-in.
+
 ## layout.py
 
 - Walk around the facade. Keep a D x D square at each corner (a 2BR).
