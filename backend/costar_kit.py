@@ -158,9 +158,9 @@ def buildings_from_kit(kit: Path, m: dict, box: tuple = DOWNTOWN) -> tuple[list[
         built = next((get(e, P["event_year"]) for e in get(r, P["events"]) or []
                       if get(e, P["event_type"]) == m["built_event"]), None)
         if f.get("asking_price"):
-            reference, reference_source = f["asking_price"], "asking price (active listing)"
+            reference, reference_source = f["asking_price"], "listing asking price"
         elif pid in sales:
-            reference, reference_source = sales[pid], "last recorded sale"
+            reference, reference_source = sales[pid], "last recorded sale price"
         else:
             reference, reference_source = None, None
         rent, n_comps = comps_rent({"lat": lat, "lon": lon}, comps)
@@ -184,6 +184,6 @@ def buildings_from_kit(kit: Path, m: dict, box: tuple = DOWNTOWN) -> tuple[list[
             "assessed_value": reference,
             "reference_source": reference_source,
             "footprint": square_footprint(lat, lon, floor_sf),
-            "footprint_source": "square of the typical floor (stand-in)",
+            "footprint_source": "a square stand-in sized to the typical floor",
         })
     return buildings, skipped

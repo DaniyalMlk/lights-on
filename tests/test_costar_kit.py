@@ -67,12 +67,12 @@ def test_builds_downtown_offices_only(kit):
     assert b["vacancy"] == 0.65                     # 1 - 210,000 / 600,000
     assert b["availability"] == 0.2                 # 120,000 / 600,000
     assert b["office_rent_psf_year"] == 27.0        # (2.0 + 2.5) / 2, monthly x 12
-    assert b["assessed_value"] == 50_000_000 and b["reference_source"].startswith("asking price")
+    assert b["assessed_value"] == 50_000_000 and b["reference_source"] == "listing asking price"
     assert b["mf_rent_psf_month"] == 2.0 and b["rent_comps"] == 3     # 1,600 / 800
 
 
 def test_falls_back_to_last_sale_without_a_listing(kit):
     (kit / "l.jsonl").write_text("")
     b = buildings_from_kit(kit, MAP)[0][0]
-    assert b["assessed_value"] == 80_000_000 and b["reference_source"] == "last recorded sale"
+    assert b["assessed_value"] == 80_000_000 and b["reference_source"] == "last recorded sale price"
     assert b["vacancy"] == 0.65 and b["availability"] == 0.0

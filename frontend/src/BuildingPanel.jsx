@@ -26,7 +26,7 @@ export default function BuildingPanel({ buildingId }) {
       <p className="muted">{building.stories} stories{building.synthetic ? " · sample data, not a real building" : ""}</p>
 
       <img className="plate" src={`/api/buildings/${buildingId}/plate.svg`} alt="Floor plate with apartments" />
-      <p className="muted small">Indicative layout from the footprint: a screening estimate, not a design.</p>
+      <p className="muted small">Indicative layout from {building.footprint_source || "the footprint"}: a screening estimate, not a design.</p>
 
       <h3>Homes (estimate)</h3>
       <table>

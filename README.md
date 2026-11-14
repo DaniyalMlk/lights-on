@@ -80,7 +80,7 @@ docs/                spec, data notes, pre-registered tests
 - [FastAPI](https://fastapi.tiangolo.com/), [Pydantic](https://docs.pydantic.dev/)
 - [Shapely](https://shapely.readthedocs.io/), [pyproj](https://pyproj4.github.io/pyproj/), [NumPy](https://numpy.org/)
 - [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents)
-- [React](https://react.dev/), [Vite](https://vite.dev/), [MapLibre GL JS](https://maplibre.org/), [CARTO](https://carto.com/basemaps) basemap tiles (© OpenStreetMap contributors)
+- [React](https://react.dev/), [Vite](https://vite.dev/), [MapLibre GL JS](https://maplibre.org/), [OpenFreeMap](https://openfreemap.org/) basemap (© OpenMapTiles, © OpenStreetMap contributors)
 - Data: CoStar, Matterport and Vexcel via the HackPrinceton CoStar track (licensed for the event only, not included in this repo)
 
 Everything outside these libraries was written during the hackathon.
