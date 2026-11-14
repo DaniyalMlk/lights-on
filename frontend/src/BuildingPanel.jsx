@@ -65,7 +65,7 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
             Value as housing minus conversion cost and developer margin, including ${incentive}/SF incentive: {money(econ.cases.downside.residual + incentive * selected.gfa_sf)} (worst) ·{" "}
             <b>{money(econ.cases.base.residual + incentive * selected.gfa_sf)}</b> (base) · {money(econ.cases.upside.residual + incentive * selected.gfa_sf)} (high)
           </p>
-          <p className="muted small">Compared with the {econ.inputs.reference_label || "assessed value"} ({money(econ.inputs.reference_value_assessed)}), not an offer price. Not included: {econ.excluded.join(", ")}.</p>
+          <p className="muted small">Compared with the {econ.inputs.reference_label || "assessed value"} ({building.synthetic ? "a sample figure" : "a CoStar figure, so not shown here"}), not an offer price. Not included: {econ.excluded.join(", ")}.</p>
           <p className="verdict">{selected.label}{selected.gated_out && " · Below vacancy filter"}</p>
           <h3>What moves it most</h3>
           {econ.tornado.map((t) => (
