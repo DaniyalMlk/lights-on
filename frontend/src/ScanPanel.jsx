@@ -72,15 +72,23 @@ export default function ScanPanel({building}) {
     read();
     return () => controller.abort();
   },[building.id]);
-  return <section><h3>Data sources</h3>
-    <div className="chips"><span>CoStar · {building.synthetic ? "sample data" : building.rba || building.typical_floor_sf ? "property record" : "unconfirmed"}</span>
-      <span>Vexcel · {building.footprint_origin === "vexcel" ? "outline used" : building.vexcel_ratio ? "outline is the building's base, not used" : "no outline"}</span>
-      <span>Matterport · {scan?.model_id ? "floor scan" : scan ? "no usable floor labels" : "checking"}</span></div>
-    {!scan?.labels?.length ? <p>{scan?.reason || "Checking scanned floor…"}</p> :
-      <><h3>Scanned floor labels</h3>
-        {key ? <button onClick={() => setOpen(!open)}>{open ? "Close" : "Open"} 3D tour</button> : <p>Tour unavailable. Saved floor labels are available below.</p>}
+  const sources = [
+    ["CoStar", building.synthetic ? "sample data" : building.rba || building.typical_floor_sf ? "property record" : "unconfirmed", !building.synthetic],
+    ["Vexcel", building.footprint_origin === "vexcel" ? "outline used" : building.vexcel_ratio ? "outline is the building's base, not used" : "no outline", building.footprint_origin === "vexcel"],
+    ["Matterport", scan?.model_id ? "floor scan" : scan ? "no usable floor labels" : "checking", Boolean(scan?.model_id)],
+  ];
+  return <section className="block sources">
+    <h3>Data sources</h3>
+    <ul className="source-list">{sources.map(([name, state, used]) =>
+      <li key={name} data-used={used}><b>{name}</b><span>{state}</span></li>)}</ul>
+    {!scan?.labels?.length ? <p className="fine">{scan?.reason || "Checking for a scanned floor…"}</p> :
+      <>
+        {key ? <button className="secondary" onClick={() => setOpen(!open)}>{open ? "Close" : "Open"} the 3D tour</button>
+             : <p className="fine">Tour unavailable. The saved floor labels are below.</p>}
         {open && <Tour scan={scan} sdkKey={key}/>}
-        {scan.labels.map((l,i) => <p className={"scan-label "+l.kind} key={i}><strong>{l.kind} · {l.title}</strong><br/>{l.detail}</p>)}
+        <h4>Labels on the scanned floor</h4>
+        <ul className="scan-labels">{scan.labels.map((l,i) => <li className={"scan-label "+l.kind} key={i}>
+          <span className="kind">{l.kind}</span><strong>{l.title}</strong><small>{l.detail}</small></li>)}</ul>
       </>}
   </section>;
 }
