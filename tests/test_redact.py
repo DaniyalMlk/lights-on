@@ -1,5 +1,5 @@
 """CoStar's raw values never reach the screen through an agent replay. Every figure here is made up."""
-from backend.redact import HIDDEN, protected_values, redact, redact_text
+from backend.redact import HIDDEN, MONEY_HIDDEN, protected_values, redact, redact_text
 
 TOWER = {"id": "T1", "vacancy": 0.4, "assessed_value": 41_500_000, "rba": 612_000, "typical_floor_sf": 23_040,
          "mf_rent_psf_month": 2.71, "office_rent_psf_year": 27.25}
@@ -29,9 +29,29 @@ def test_prices_and_areas_are_hidden_however_they_are_rounded():
         assert HIDDEN in redact_text(text, P), text
 
 
-def test_our_own_numbers_stay():
-    text = "512 homes at 36 ft; residual -$64.2M; cost $188.9M; plate 21,904 SF from the scan; score 47.1"
+def test_our_own_counts_and_scores_stay():
+    text = "512 homes at 36 ft; 81% near a window; plate 21,904 SF from the scan; score 47.1"
     assert redact_text(text, P) == text
+
+
+def test_dollar_figures_of_a_real_building_are_hidden():
+    # A total cost divided by our published cost per SF is the floor area, so our own totals go too
+    out = redact_text("residual -$64.2M; cost $188,900,000.00; a residual per GSF of -$71; needs $300/SF of hard cost", P)
+    for raw in ("64.2", "188,900,000", "71", "300"):
+        assert raw not in out
+    assert out.count(MONEY_HIDDEN) == 4
+    out = redact_text('{"cost": 188900000.0, "residual": -64200000.0, "residual_per_gsf": -104.9, "homes": 512}', P)
+    assert "188900000" not in out and "64200000" not in out and "104.9" not in out
+    assert '"homes": 512' in out
+    out = redact_text("- **Residual (Base Case):** -64,200,000.25\n- Cost (Base Case): 188,900,000.5\n- Score: 47.1", P)
+    assert "64,200,000" not in out and "188,900,000" not in out and "Score: 47.1" in out
+    assert redact_text("Screen building 10819844 for vacancy eligibility.", P) == "Screen building 10819844 for vacancy eligibility."
+
+
+def test_dollar_figures_of_a_sample_building_stay():
+    sample = protected_values(dict(TOWER, synthetic=True))
+    text = "residual -$64.2M; cost $188.9M"
+    assert redact_text(text, sample) == text
 
 
 def test_sample_buildings_are_left_alone():

@@ -132,11 +132,12 @@ def recording(building_id: str):
 def _protect(building_id: str | None) -> dict:
     """CoStar figures to keep off the screen: one building's, or every building's for a run without one."""
     ids = [building_id] if building_id in BUILDINGS else list(BUILDINGS)
-    merged = {"large": [], "rents": []}
+    merged = {"large": [], "rents": [], "money": False}
     for i in ids:
         values = protected_values(BUILDINGS[i], load_result(i))
         merged["large"] += values["large"]
         merged["rents"] += values["rents"]
+        merged["money"] = merged["money"] or values["money"]
     return merged
 
 
