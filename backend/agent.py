@@ -213,7 +213,7 @@ def run_agent(goal: str, building_id: str | None = None) -> dict:
     agent = build_agent()
     prompt = goal if not building_id else f"{goal}\nFocus on building {building_id}."
     result = agent.invoke({"messages": [{"role": "user", "content": prompt}]})
-    trace = [{"type": m.type, "content": m.content if isinstance(m.content, str) else str(m.content),
+    trace = [{"type": m.type, "content": _text(m.content),
               "tool_calls": getattr(m, "tool_calls", None)} for m in result["messages"]]
     return {"answer": trace[-1]["content"] if trace else "", "trace": trace, "todos": result.get("todos", [])}
 
@@ -230,6 +230,14 @@ def _messages(update: dict) -> list:
     return msgs
 
 
+def _text(content) -> str:
+    """A message's text. Some models (Gemini 3) send a list of parts instead of one string."""
+    if isinstance(content, str):
+        return content
+    parts = content if isinstance(content, list) else [content]
+    return "".join(p if isinstance(p, str) else p.get("text", "") for p in parts if isinstance(p, (str, dict)))
+
+
 def _events_from_update(namespace: tuple, update: dict) -> list[dict]:
     """Turn one LangGraph update into small UI events: plan, delegate, tool_call, tool_result, message."""
     who = "orchestrator" if not namespace else "sub-agent"
@@ -244,10 +252,11 @@ def _events_from_update(namespace: tuple, update: dict) -> list[dict]:
                                    "task": call["args"].get("description", "")})
                 else:
                     events.append({"type": "tool_call", "who": who, "name": call["name"], "args": call["args"]})
-            if isinstance(m.content, str) and m.content.strip():
-                events.append({"type": "message", "who": who, "text": m.content})
+            text = _text(m.content)
+            if text.strip():
+                events.append({"type": "message", "who": who, "text": text})
         elif m.type == "tool":
-            summary = m.content if isinstance(m.content, str) else str(m.content)
+            summary = _text(m.content)
             try:
                 parsed = json.loads(summary)
                 if m.name == "verify_numbers" and parsed.get("status") == "error":

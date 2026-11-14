@@ -61,3 +61,12 @@ def test_stream_records_a_trace_and_replays_it(monkeypatch, tmp_path):
 def test_replay_without_recording_says_so(monkeypatch, tmp_path):
     monkeypatch.setattr(A, "WORK_DIR", tmp_path)
     assert list(A.replay_trace("NOPE"))[0]["type"] == "error"
+
+
+def test_text_from_a_list_of_parts():
+    """Gemini 3 sends content as parts with a signature; the trace should keep only the words."""
+    parts = [{"type": "text", "text": "Memo: ", "extras": {"signature": "abc"}}, {"type": "text", "text": "12 homes."}]
+    assert A._text(parts) == "Memo: 12 homes."
+    assert A._text("plain") == "plain"
+    events = A._events_from_update((), {"messages": [AIMessage(content=parts)]})
+    assert events == [{"type": "message", "who": "orchestrator", "text": "Memo: 12 homes."}]
