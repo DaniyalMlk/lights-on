@@ -101,6 +101,12 @@ Converting reuses the structure, so it avoids 50-75% of the embodied carbon of a
 - A case can also expect the deep-plate flag (`expect_deep_plate`). If the flag is wrong the case is a miss, and the row lists what missed.
 - Input sensitivity: each building is run again with a square floor of CoStar's typical floor area, to show how much the real plate (a scanned floor, or the footprint) changes the answer. That's sensitivity, not accuracy.
 
+## What the agent may see (agent.py)
+
+- CoStar's terms forbid sharing their data with third parties, and a hosted model is one. Until CoStar says yes, the agent only sees the synthetic sample buildings: `find_candidates` lists only those, a real building id is refused before any model call, and the file tools can open only the sample folders under `/work/`.
+- Once CoStar clears it, `COSTAR_LLM_OK=yes` in `.env` opens the real list.
+- Every recorded run saves its token count (`tokens` in `work/<id>/trace.json`), so we know what a run costs.
+
 ## Agent trace (agent.py + AgentPanel.jsx)
 
 - `/api/agent/stream` streams server-sent events: plan, hand-off to a sub-agent, tool call, tool result, message.

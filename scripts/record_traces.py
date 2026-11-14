@@ -12,20 +12,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from backend.agent import stream_agent        # noqa: E402  (needs the .env loaded first)
-from backend.main import BUILDINGS, AgentRequest  # noqa: E402
+import json  # noqa: E402
+
+from backend.agent import _buildings, real_data_allowed, stream_agent, trace_path   # noqa: E402  (needs the .env loaded first)
+from backend.main import AgentRequest  # noqa: E402
 
 if not os.environ.get("LIGHTS_ON_MODEL"):
     sys.exit("Set LIGHTS_ON_MODEL in .env first (see .env.example).")
 
 goal = AgentRequest().goal          # the same question the UI asks
-ids = sys.argv[1:] or list(BUILDINGS)
+ids = sys.argv[1:] or list(_buildings())     # the samples, unless CoStar cleared real data
+if not real_data_allowed():
+    print("Sample buildings only: CoStar hasn't cleared sending their data to a hosted model.")
 for building_id in ids:
     print(f"== {building_id}")
-    for event in stream_agent(goal, building_id):
+    for event in stream_agent(goal, building_id, limit_s=600):   # recording can take longer than the live demo
         if event["type"] == "tool_call":
             print(f"   {event['who']}: {event['name']}")
         elif event["type"] == "delegate":
             print(f"   -> {event['to']}")
         elif event["type"] in ("timeout", "done"):
             print(f"   {event['type']} ({event.get('seconds')} s)")
+    saved = trace_path(building_id)
+    if saved.exists():
+        tokens = json.loads(saved.read_text()).get("tokens", {})
+        print(f"   tokens: {tokens.get('input', 0):,} in, {tokens.get('output', 0):,} out -> {saved}")

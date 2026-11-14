@@ -21,9 +21,24 @@ from backend.pipeline import WORK_DIR, analyze, load_result
 from backend.tools.verifier import verify
 
 
+# CoStar's terms (section 2.2) forbid sharing their data with third parties, and a hosted model is one.
+# Until CoStar says yes, the agent only sees the synthetic sample buildings. Once they do: COSTAR_LLM_OK=yes in .env.
+def real_data_allowed() -> bool:
+    return os.environ.get("COSTAR_LLM_OK", "").strip().lower() == "yes"
+
+
 def _buildings() -> dict:
-    from backend.main import BUILDINGS   # same building list the API uses
-    return BUILDINGS
+    """The buildings the agent may see: the real list only if CoStar cleared it, otherwise the samples."""
+    from backend.main import BUILDINGS, SAMPLE_FILE
+    if real_data_allowed():
+        return BUILDINGS
+    return {b["id"]: b for b in json.loads(SAMPLE_FILE.read_text())["buildings"]}
+
+
+def _check_building(building_id: str | None) -> None:
+    if building_id and building_id not in _buildings():
+        raise PermissionError(f"{building_id} is real CoStar data: the agent only runs on sample buildings "
+                              "until CoStar clears it (COSTAR_LLM_OK=yes in .env)")
 
 
 @tool
@@ -122,6 +137,9 @@ def check_matterport(building_id: str) -> str:
 @tool
 def verify_numbers(building_id: str, text: str) -> str:
     """Check that every number in a draft comes from /work/<building_id>/. Returns rejected numbers with fixes."""
+    if building_id not in _buildings():
+        return json.dumps({"status": "error", "summary": f"unknown building {building_id}",
+                           "next_actions": ["call find_candidates to get valid ids"]})
     work = load_result(building_id) or {}
     return json.dumps(verify(text, work))
 
@@ -166,11 +184,20 @@ If the verifier rejects a number, send the draft back to the writer once with th
 Never state a number that isn't in a tool output. Ask before writing if data is missing."""
 
 
+def _work_routes() -> dict:
+    """The model reads tool outputs through /work/. Without CoStar's OK it can open only the sample folders."""
+    if real_data_allowed():
+        return {"/work/": FilesystemBackend(root_dir=str(WORK_DIR), virtual_mode=True)}
+    routes = {}
+    for building_id in _buildings():
+        folder = WORK_DIR / building_id
+        folder.mkdir(parents=True, exist_ok=True)
+        routes[f"/work/{building_id}/"] = FilesystemBackend(root_dir=str(folder), virtual_mode=True)
+    return routes
+
+
 def build_agent():
-    backend = CompositeBackend(
-        default=StateBackend(),
-        routes={"/work/": FilesystemBackend(root_dir=str(WORK_DIR), virtual_mode=True)},
-    )
+    backend = CompositeBackend(default=StateBackend(), routes=_work_routes())
     return create_deep_agent(
         model=os.environ["LIGHTS_ON_MODEL"],
         tools=[find_candidates, analyze_building, check_matterport, verify_numbers],
@@ -182,6 +209,7 @@ def build_agent():
 
 
 def run_agent(goal: str, building_id: str | None = None) -> dict:
+    _check_building(building_id)
     agent = build_agent()
     prompt = goal if not building_id else f"{goal}\nFocus on building {building_id}."
     result = agent.invoke({"messages": [{"role": "user", "content": prompt}]})
@@ -235,28 +263,34 @@ def trace_path(building_id: str | None):
     return WORK_DIR / (building_id or "_all") / "trace.json"
 
 
-def stream_agent(goal: str, building_id: str | None = None):
+def stream_agent(goal: str, building_id: str | None = None, limit_s: int = TRACE_LIMIT_S):
     """Yield events from a live run and save them, so the same run can be replayed later."""
     import time
     from datetime import datetime, timezone
 
+    _check_building(building_id)
     started = time.time()
     events = []
+    tokens = {"input": 0, "output": 0}
     prompt = goal if not building_id else f"{goal}\nFocus on building {building_id}."
     for namespace, update in build_agent().stream({"messages": [{"role": "user", "content": prompt}]},
                                                   stream_mode="updates", subgraphs=True):
         for node_update in (update or {}).values():
             if not isinstance(node_update, dict):
                 continue
+            for m in _messages(node_update):         # count tokens, so we know what a run costs
+                usage = getattr(m, "usage_metadata", None) or {}
+                tokens["input"] += usage.get("input_tokens", 0)
+                tokens["output"] += usage.get("output_tokens", 0)
             for event in _events_from_update(namespace, node_update):
                 events.append(event)
                 yield event
-        if time.time() - started > TRACE_LIMIT_S:
-            yield {"type": "timeout", "seconds": TRACE_LIMIT_S}
+        if time.time() - started > limit_s:
+            yield {"type": "timeout", "seconds": limit_s}
             return
 
     record = {"recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-              "model": str(os.environ.get("LIGHTS_ON_MODEL")), "goal": prompt, "events": events}
+              "model": str(os.environ.get("LIGHTS_ON_MODEL")), "goal": prompt, "tokens": tokens, "events": events}
     path = trace_path(building_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(record, indent=1))
