@@ -37,8 +37,8 @@ export default function BuildingList({ features, selectedId, hoveredId, onSelect
     {error ? <p className="empty">Building data unavailable. Is the API running?</p>
       : !features ? <ul className="rows skeleton" aria-hidden="true">{[1, 2, 3, 4, 5, 6].map(i => <li key={i} />)}</ul>
       : !features.length ? <p className="empty">No buildings available.</p>
-      : <ul className="rows" onMouseLeave={() => onHover(null)}>{rows.map(({ properties: p }) =>
-        <li key={p.id}>
+      : <ul className="rows" onMouseLeave={() => onHover(null)}>{rows.map(({ properties: p }, index) =>
+        <li key={p.id} style={{ "--i": index }}>
           <button aria-pressed={selectedId === p.id} data-hover={hoveredId === p.id} data-lit={Boolean(p.lit)}
                   data-off={Boolean(p.gated_out || p.map_only)}
                   onMouseEnter={() => onHover(p.id)} onFocus={() => onHover(p.id)} onClick={() => onSelect(p.id)}>

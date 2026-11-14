@@ -68,7 +68,7 @@ function Run({ events, names }) {
     </section>}
 
     <ol className="timeline">{r.steps.map((s, i) => (
-      <li key={i} className="step">
+      <li key={i} className="step" style={{ "--i": i }}>
         <header><b>{s.to}</b><span>{ROLE[s.to] ?? "Sub-agent"}</span></header>
         <p className="task">{say(s.task)}</p>
         {s.tools.length > 0 && <ul className="tools">{s.tools.map((t, j) =>

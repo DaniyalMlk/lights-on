@@ -30,7 +30,6 @@ function WindowMark() {
 }
 
 export default function App() {
-  const [resetKey, setResetKey] = useState(0);
   const [buildings, setBuildings] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
@@ -38,10 +37,13 @@ export default function App() {
   const [tab, setTab] = useState("Overview");             // inside a building: Overview | Agent
   const [incentive, setIncentive] = useState(0);
   const [vacancyGate, setVacancyGate] = useState(35);
-  const [touched, setTouched] = useState(false);          // the slider hint pulses until first use
+  const [touched, setTouched] = useState(false);          // the slider thumb pulses until first use
   const [loadError, setLoadError] = useState(false);
   const [proof, setProof] = useState(undefined);
+  const [inset, setInset] = useState({ right: 0, bottom: 0 });   // how much of the map the floating panels cover
   const backTo = useRef("list");
+  const side = useRef(null);
+  const card = useRef(null);
 
   function restoreView(collection) {
     const query = new URLSearchParams(window.location.search);
@@ -54,7 +56,6 @@ export default function App() {
     setIncentive(0);
     setVacancyGate(35);
     setTouched(false);
-    setResetKey(n => n + 1);
   }
   function selectBuilding(id) {
     setSelectedId(id);
@@ -85,6 +86,17 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // On a wide screen the panel floats over the map; tell the map so it centers on what stays visible
+  useEffect(() => {
+    const measure = () => setInset({
+      right: window.innerWidth > 860 && side.current ? side.current.offsetWidth + 24 : 0,
+      bottom: card.current ? card.current.offsetHeight + 40 : 0,
+    });
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   // Recompute verdicts for the current slider values
   const mapData = useMemo(() => {
     if (!buildings) return null;
@@ -108,33 +120,33 @@ export default function App() {
   const scored = proof ? proof.cases.filter(c => c.status === "pass" || c.status === "miss").length : 0;
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="Lights On, start over"><WindowMark />Lights On</a>
-        <nav className="topnav" aria-label="Sections">
-          <button aria-pressed={view !== "validation"} onClick={() => setView(selectedId ? "building" : "list")}>Map</button>
-          <button aria-pressed={view === "validation"} onClick={openValidation}>
-            Validation{proof && <span className="count">{passed} of {scored} passed</span>}
-          </button>
-        </nav>
-        <div className="headline-total" aria-live="polite">
-          <b>{mapData ? <AnimatedNumber value={litHomes} /> : "–"}</b>
-          <span>of {allHomes.toLocaleString()} homes clear the screen
-            <small>36 ft layout · ${incentive}/SF hypothetical incentive</small></span>
-        </div>
-      </header>
+    <main className="stage">
+      <section className="map-wrap" aria-label="Map of downtown Houston">
+        {mapData && <CityMap data={mapData} selectedId={selectedId} hoveredId={hoveredId} rightInset={inset.right} bottomInset={inset.bottom}
+                             onSelect={selectBuilding} onHover={setHoveredId} />}
 
-      <main className="layout">
-        <section className="map-wrap" aria-label="Map of downtown Houston">
-          {mapData && <CityMap key={resetKey} data={mapData} selectedId={selectedId} hoveredId={hoveredId}
-                               onSelect={selectBuilding} onHover={setHoveredId} />}
-          <div className="map-caption">
-            <p className="eyebrow">Downtown Houston · {towers.length || "–"} office towers</p>
+        <header className="island">
+          <a className="brand" href="/" aria-label="Lights On, start over"><WindowMark />Lights On</a>
+          <nav className="topnav" aria-label="Sections">
+            <button aria-pressed={view !== "validation"} onClick={() => setView(selectedId ? "building" : "list")}>Map</button>
+            <button aria-pressed={view === "validation"} onClick={openValidation}>
+              Validation{proof && <span className="count">{passed} of {scored} passed</span>}
+            </button>
+          </nav>
+        </header>
+
+        {/* One dock under the map: the incentive, what it lights up, and the vacancy filter */}
+        <div className="dock" ref={card}>
+          <div className="dock-note">
             <p>A tower lights up when it could become homes and still pay for itself.</p>
+            <ul className="legend">
+              <li className="lit">Clears the screen</li>
+              <li className="dark">Not yet</li>
+              <li className="off">Filtered out</li>
+            </ul>
           </div>
-
           <div className="scenario">
-            <div className="scenario-core">
+            <div className="control">
               <div className="scenario-row">
                 <label htmlFor="incentive">Hypothetical incentive</label>
                 <output htmlFor="incentive">${incentive}<small>/SF</small></output>
@@ -142,50 +154,50 @@ export default function App() {
               <input id="incentive" type="range" min="0" max="250" step="5" value={incentive}
                      className={touched ? "" : "beckon"} style={{ "--p": `${incentive / 2.5}%` }}
                      onChange={(e) => { setTouched(true); setIncentive(Number(e.target.value)); }} />
-              <p className="hint">{litTowers.length
-                ? <><b>{litTowers.length} of {towers.length}</b> towers lit · {litHomes.toLocaleString()} homes</>
-                : "Drag to test an incentive and watch for lights"}</p>
-              <div className="scenario-row minor">
-                <label htmlFor="vacancy">At least <b>{vacancyGate}%</b> of the space vacant</label>
+            </div>
+            <div className={`result ${litTowers.length ? "lit" : ""}`} aria-live="polite">
+              <b>{mapData ? <AnimatedNumber value={litHomes} /> : "–"}</b>
+              <span>of {allHomes.toLocaleString()} homes clear the screen
+                <small>{litTowers.length ? `${litTowers.length} of ${towers.length} towers lit` : "Drag the slider to light towers"}</small></span>
+            </div>
+            <div className="control minor">
+              <div className="scenario-row">
+                <label htmlFor="vacancy">At least <b>{vacancyGate}%</b> vacant</label>
+                <button className="text-button" onClick={() => restoreView(buildings)}>Reset</button>
               </div>
               <input id="vacancy" className="quiet" type="range" min="0" max="90" step="5" value={vacancyGate}
                      style={{ "--p": `${vacancyGate / 0.9}%` }} onChange={(e) => setVacancyGate(Number(e.target.value))} />
-              <div className="scenario-foot">
-                <ul className="legend">
-                  <li className="lit">Clears the screen</li>
-                  <li className="dark">Not yet</li>
-                  <li className="off">Filtered out</li>
-                </ul>
-                <button className="text-button" onClick={() => restoreView(buildings)}>Reset</button>
-              </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        <aside className="side" key={resetKey}>
-          {view === "list" && <BuildingList features={mapData?.features} selectedId={selectedId} hoveredId={hoveredId}
-                                            onSelect={selectBuilding} onHover={setHoveredId} error={loadError} />}
-          {view !== "list" && <>
-            <div className="side-head">
-              <button className="back" onClick={closeSheet}><span aria-hidden="true">←</span>
-                {view === "validation" && backTo.current === "building" && selected ? selected.name : "All towers"}</button>
-              {view === "building" && <nav className="tabs" aria-label="Building views">
-                {["Overview", "Agent"].map((t) => (
-                  <button key={t} aria-pressed={t === tab} onClick={() => setTab(t)}>{t === "Agent" ? "Agent run" : t}</button>
-                ))}
-              </nav>}
-            </div>
-            <div className="sheet" key={view + selectedId + tab}>
-              {view === "validation" && <ProofPanel proof={proof} />}
-              {view === "building" && (selected?.map_only
-                ? <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
-                : tab === "Agent"
-                  ? <AgentPanel key={selectedId} buildingId={selectedId} names={names} />
-                  : <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive} />)}
-            </div>
-          </>}
-        </aside>
-      </main>
-    </div>
+        {/* The 3D tour of a scanned floor opens here, over the map (see ScanPanel) */}
+        <div id="tour-root" />
+      </section>
+
+      <aside className="side" ref={side}>
+        {view === "list" && <BuildingList features={mapData?.features} selectedId={selectedId} hoveredId={hoveredId}
+                                          onSelect={selectBuilding} onHover={setHoveredId} error={loadError} />}
+        {view !== "list" && <>
+          <div className="side-head">
+            <button className="back" onClick={closeSheet}><span aria-hidden="true">←</span>
+              {view === "validation" && backTo.current === "building" && selected ? selected.name : "All towers"}</button>
+            {view === "building" && <nav className="tabs" aria-label="Building views">
+              {["Overview", "Agent"].map((t) => (
+                <button key={t} aria-pressed={t === tab} onClick={() => setTab(t)}>{t === "Agent" ? "Agent run" : t}</button>
+              ))}
+            </nav>}
+          </div>
+          <div className="sheet" key={view + selectedId + tab}>
+            {view === "validation" && <ProofPanel proof={proof} />}
+            {view === "building" && (selected?.map_only
+              ? <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
+              : tab === "Agent"
+                ? <AgentPanel key={selectedId} buildingId={selectedId} names={names} />
+                : <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive} />)}
+          </div>
+        </>}
+      </aside>
+    </main>
   );
 }

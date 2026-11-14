@@ -14,9 +14,9 @@ function summarize(cases) {
 
 const STATUS = { pass: "Pass", miss: "Miss", "no data": "Dropped", "compare by hand": "Described" };
 
-function CaseRow({ c }) {
+function CaseRow({ c, index }) {
   const actual = c.truth ?? (c.status === "compare by hand" ? "AECOM's ranking" : "–");
-  return <li className="case" data-status={c.status}>
+  return <li className="case" data-status={c.status} style={{ "--i": index }}>
     <header>
       <h3>{c.case}</h3>
       <span className="chip">{STATUS[c.status] ?? c.status}{c.error_pct != null ? ` · ${c.error_pct > 0 ? "+" : ""}${c.error_pct}%` : ""}</span>
@@ -55,7 +55,7 @@ export default function ProofPanel({ proof }) {
       <p className="fine">Not fully blind: a first run on real data (Sat 00:30) showed some results early, and the change
         log in docs/preregistration.md says which. Official run {when(proof.ran_at)}, parameters {proof.params_version}.</p>
     </header>
-    <ol className="cases">{proof.cases.map(c => <CaseRow key={c.case} c={c} />)}</ol>
+    <ol className="cases">{proof.cases.map((c, i) => <CaseRow key={c.case} c={c} index={i} />)}</ol>
 
     <section className="block">
       <h3>Does the real plate change the answer?</h3>
