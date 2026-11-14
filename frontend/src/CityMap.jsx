@@ -20,21 +20,22 @@ const NIGHT_STYLE = {
 
 const FEET_TO_M = 0.3048;
 
-export default function CityMap({ data, selectedId, onSelect }) {
+export default function CityMap({ data, selectedId, onSelect, onUnavailable }) {
   const container = useRef(null);
   const map = useRef(null);
   const latestData = useRef(data);
   latestData.current = data;
 
   useEffect(() => {
-    const instance = new MapLibreMap({
+    let instance;
+    try { instance = new MapLibreMap({
       container: container.current,
       style: NIGHT_STYLE,
       center: [-95.366, 29.757],
       zoom: 15,
       pitch: 55,
       bearing: -20,
-    });
+    }); } catch { onUnavailable(); return; }
     map.current = instance;
     instance.once("load", () => addBuildings(instance, latestData.current, onSelect));
     return () => {
@@ -59,7 +60,7 @@ export default function CityMap({ data, selectedId, onSelect }) {
       if (!feature) return;
       const bounds = new LngLatBounds();
       for (const point of feature.geometry.coordinates[0]) bounds.extend(point);
-      instance.flyTo({ center: bounds.getCenter(), zoom: 17, duration: 550 });
+      instance.flyTo({ center: bounds.getCenter(), zoom: 17, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550 });
     }
     if (instance.getSource("buildings")) focusBuilding();
     else instance.once("load", focusBuilding);

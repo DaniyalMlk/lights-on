@@ -87,6 +87,7 @@ export default function AgentPanel({ buildingId }) {
   const rejectionIndex = record?.events.findIndex(row => row.type === "verifier_rejection") ?? -1;
   return (
     <div className="panel">
+      <p className="eyebrow">Analysis workflow</p><h2>Agent run</h2>
       <p className="muted">
         The agent plans the job, hands it to the screener, analyst, writer and verifier, and every number it writes
         is checked against the saved tool outputs.

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import CityMap from "./CityMap.jsx";
+import { lazy, Suspense, useRef, useEffect, useMemo, useState } from "react";
+import FootprintAtlas from "./FootprintAtlas.jsx";
+const CityMap = lazy(() => import("./CityMap.jsx"));
 import BuildingPanel from "./BuildingPanel.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import ProofPanel from "./ProofPanel.jsx";
@@ -20,6 +21,7 @@ function evaluate(p, incentive) {
 const TABS = ["Building", "Agent", "Proof"];
 
 export default function App() {
+  const inspector = useRef(null);
   const [resetKey, setResetKey] = useState(0);
   const [buildings, setBuildings] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -27,17 +29,23 @@ export default function App() {
   const [vacancyGate, setVacancyGate] = useState(35);
   const [tab, setTab] = useState("Building");
 
+  const [mapMode, setMapMode] = useState("Atlas");
   const [loadError, setLoadError] = useState(false);
   function restoreView(collection) {
     const query = new URLSearchParams(window.location.search);
     const id = query.get("demo");
     setSelectedId(collection?.features.some(f => f.properties.id === id) ? id : null);
     setTab(TABS.includes(query.get("tab")) ? query.get("tab") : "Building");
+    setMapMode("Atlas");
     setIncentive(0);
     setVacancyGate(35);
     setResetKey(n => n + 1);
   }
-  function selectBuilding(id) { setSelectedId(id); setTab("Building"); }
+  function selectBuilding(id) {
+    setSelectedId(id);
+    setTab("Building");
+    requestAnimationFrame(() => inspector.current?.focus());
+  }
   useEffect(() => {
     fetch("/api/buildings").then((r) => {
       if (!r.ok) throw new Error();
@@ -66,49 +74,54 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1><i aria-hidden="true">▥</i> Lights On</h1>
-        <p>Office-to-housing screening</p>
-      <small>Houston, TX</small></header>
-
-      <div className="layout">
-        <div className="map-wrap">
-          {mapData && <CityMap key={resetKey} data={mapData} selectedId={selectedId} onSelect={selectBuilding} />}
-          <div className="map-title"><small>Conversion atlas</small><h2>Houston after dark</h2></div>
-          <div className="controls"><h3>Scenario settings</h3>
-            <button className="reset" onClick={() => restoreView(buildings)}>Reset view</button>
-            <div className="map-key"><span>Covers basis</span><span>Below basis / unavailable</span><span>Filtered / indicative</span></div>
-            <label>
-              Incentive: ${incentive}/SF
-              <input type="range" min="0" max="250" step="5" value={incentive}
-                     onChange={(e) => setIncentive(Number(e.target.value))} />
-            </label>
-            <label>
-              Vacancy at least {vacancyGate}%
-              <input type="range" min="0" max="90" step="5" value={vacancyGate}
-                     onChange={(e) => setVacancyGate(Number(e.target.value))} />
-            </label>
-            <div className="screen-total"><b>{mapData ? litHomes.toLocaleString() : "—"}</b> homes pass the financial screen</div>
+        <strong className="brand"><i aria-hidden="true"><b/><b/><b/></i>Lights On</strong>
+        <span className="location">Houston, TX</span>
+      </header>
+      <main>
+        <header className="masthead"><div><p className="eyebrow">Office-to-housing atlas</p>
+          <h1>Houston <em>after dark.</em></h1></div>
+          <div className="total"><b>{mapData ? litHomes.toLocaleString() : "—"}</b><span>potential homes passing<br/>the financial screen</span></div>
+        </header>
+        <div className="layout">
+        <section className="map-workspace" aria-label="Conversion atlas">
+          <div className="map-head"><h2>Conversion atlas</h2>
+            <div className="switch">{["Atlas","Street map"].map(mode=><button key={mode} aria-pressed={mode===mapMode} onClick={()=>setMapMode(mode)}>{mode}</button>)}</div></div>
+          <div className="map-wrap">
+            {mapData && (mapMode==="Atlas" ? <FootprintAtlas features={mapData.features} selectedId={selectedId} onSelect={selectBuilding}/> :
+              <Suspense fallback={<p className="map-message">Loading street map…</p>}><CityMap key={resetKey} data={mapData} selectedId={selectedId} onSelect={selectBuilding} onUnavailable={()=>setMapMode("Atlas")}/></Suspense>)}
+            {!mapData && <p className="map-message" role="status">{loadError ? "Connect the building API to load the atlas." : "Loading building footprints…"}</p>}
+            {mapMode==="Atlas" && <span className="map-caption">Axonometric · schematic ground grid</span>}
           </div>
-        </div>
+          <div className="map-key"><span>Covers basis</span><span>Below basis / unavailable</span><span>Filtered / indicative</span></div>
+          <section className="controls"><div className="control-heading"><h2>Scenario settings</h2>
+            <button className="reset" onClick={() => restoreView(buildings)}>Reset view</button></div>
+            <div className="sliders"><label>Incentive <b>${incentive}/SF</b>
+              <input type="range" min="0" max="250" step="5" value={incentive} onChange={e=>setIncentive(Number(e.target.value))}/>
+            </label>
+            <label>Minimum vacancy <b>{vacancyGate}%</b>
+              <input type="range" min="0" max="90" step="5" value={vacancyGate} onChange={e=>setVacancyGate(Number(e.target.value))}/>
+            </label></div>
+          </section>
+        </section>
 
-        <aside className="side" key={resetKey}>
-          <BuildingList features={mapData?.features} selectedId={selectedId} onSelect={selectBuilding} error={loadError} />
-          <nav className="tabs">
-            {TABS.map((t) => (
-              <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>{t}</button>
-            ))}
+        <aside className="side" ref={inspector} tabIndex={-1} aria-label="Building inspector" key={resetKey}>
+          {selected ? <div className="back-row"><button onClick={()=>{setSelectedId(null);setTab("Building");}}>← All candidates</button></div> :
+            <BuildingList features={mapData?.features} onSelect={selectBuilding} error={loadError} />}
+          <nav className="tabs" aria-label="Study sections">
+            {TABS.filter(t=>selected || t==="Proof").map(t=><button key={t} aria-pressed={t===tab} onClick={()=>setTab(t===tab && !selected ? "Building" : t)}>{t==="Proof" ? "Validation" : t}</button>)}
           </nav>
           {selected?.map_only && tab !== "Proof" ? (
             <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
           ) : (
             <>
-              {tab === "Building" && <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive} />}
+              {selected && tab === "Building" && <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive} />}
               {tab === "Agent" && <AgentPanel key={selectedId} buildingId={selectedId} />}
             </>
           )}
           {tab === "Proof" && <ProofPanel />}
         </aside>
       </div>
+      </main>
     </div>
   );
 }

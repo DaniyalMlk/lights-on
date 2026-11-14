@@ -35,9 +35,10 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
   const swing = Math.max(1, ...(econ?.tornado ?? []).flatMap(t => [Math.abs(t.low_per_gsf), Math.abs(t.high_per_gsf)]));
   return (
     <div className="panel">
-      <h2>{building.name}</h2>
+      <p className="eyebrow">Building study</p><h2>{building.name}</h2>
       <p className="muted">{building.stories} stories{building.synthetic ? " · sample data, not a real building" : ""}</p>
 
+      <div className="study-total"><b>{depths[depth].homes.toLocaleString()}</b><span>potential homes at {depth} ft</span></div>
       <h3>Indicative layout</h3>
       <div className="depths" aria-label="Unit depth">{[30,36,42].map(d =>
         <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>{d} ft</button>)}</div>
