@@ -8,32 +8,41 @@ setWorkerUrl(workerUrl);
 // OpenFreeMap needs no API key (CARTO's free tiles now answer "API KEY REQUIRED"). We drop its text labels,
 // because the towers carry our own, and dim it so only our towers carry light. Without wifi: a plain background.
 const BASEMAP_URL = "https://tiles.openfreemap.org/styles/dark";
-const NIGHT = "#0c0e11";
+const NIGHT = "#172030";
 const OFFLINE_STYLE = {
   version: 8,
   sources: {},
   layers: [{ id: "background", type: "background", paint: { "background-color": NIGHT } }],
 };
 
-// Basemap colors by layer id: a quiet city at night, so the lit towers are the brightest thing on screen
+// Basemap colors by layer id: downtown at blue hour, the moment the lights come on. Deep blue rather than
+// black keeps the screen light, and the warm towers are still the brightest thing on it.
 const DIM = {
   background: { "background-color": NIGHT },
-  water: { "fill-color": "#0d1319" },
-  waterway: { "line-color": "#0d1319" },
-  landuse_residential: { "fill-color": "#0e1013" },
-  landcover_wood: { "fill-color": "#0f1316" },
-  landuse_park: { "fill-color": "#0f1316" },
-  building: { "fill-color": "#14171b" },
-  highway_minor: { "line-color": "#15181c" },
-  highway_major_casing: { "line-color": "#1b1f24" },
-  highway_major_inner: { "line-color": "#171a1f" },
-  highway_major_subtle: { "line-color": "#171a1f" },
-  highway_motorway_casing: { "line-color": "#20252b" },
-  highway_motorway_inner: { "line-color": "#262c33" },
-  highway_motorway_subtle: { "line-color": "#191d22" },
-  railway: { "line-color": "#191c20" },
-  railway_transit: { "line-color": "#191c20" },
-  railway_minor: { "line-color": "#191c20" },
+  water: { "fill-color": "#111a29" },
+  waterway: { "line-color": "#111a29" },
+  landuse_residential: { "fill-color": "#18212f" },
+  landcover_wood: { "fill-color": "#182433" },
+  landuse_park: { "fill-color": "#182433" },
+  building: { "fill-color": "#1e2839" },
+  highway_minor: { "line-color": "#1f2a3b" },
+  highway_major_casing: { "line-color": "#26324a" },
+  highway_major_inner: { "line-color": "#223047" },
+  highway_major_subtle: { "line-color": "#223047" },
+  highway_motorway_casing: { "line-color": "#2c3a55" },
+  highway_motorway_inner: { "line-color": "#34456a" },
+  highway_motorway_subtle: { "line-color": "#24304a" },
+  railway: { "line-color": "#212b3d" },
+  railway_transit: { "line-color": "#212b3d" },
+  railway_minor: { "line-color": "#212b3d" },
+  railway_dashline: { "line-color": "#2a3549" },
+  railway_transit_dashline: { "line-color": "#2a3549" },
+  railway_minor_dashline: { "line-color": "#2a3549" },
+  road_pier: { "line-color": NIGHT },
+  road_area_pier: { "fill-color": NIGHT },
+  aeroway_area: { "fill-color": "#1a2332" },
+  "aeroway-area": { "fill-color": "#1a2332" },
+  "aeroway-runway": { "line-color": "#1a2332" },
 };
 
 async function loadNightStyle() {
@@ -59,12 +68,12 @@ const LAMP = "#f4bf5f";
 // Window textures for the towers. One 16 x 16 tile holds four windows; a lit tower has most of them on,
 // a dark tower has one faint one, so the city reads as "offices at night" rather than grey boxes.
 const WINDOWS = {
-  "win-lit":     { wall: "#3a2c14", panes: ["#f6c461", "#ffd98c", "#5b4521", "#eaa944"] },
-  "win-lit-hi":  { wall: "#4d3a19", panes: ["#ffd27a", "#ffe4ad", "#8a6a33", "#ffc458"] },
-  "win-dark":    { wall: "#272e37", panes: ["#38424e", "#38424e", "#4d4230", "#38424e"] },
-  "win-dark-hi": { wall: "#3b4551", panes: ["#5c6878", "#5c6878", "#7d6c4b", "#5c6878"] },
-  "win-off":     { wall: "#181c21", panes: ["#21272e", "#21272e", "#21272e", "#21272e"] },
-};
+  "win-lit":     { wall: "#4a3616", panes: ["#f6c461", "#ffd98c", "#6b5124", "#eaa944"] },
+  "win-lit-hi":  { wall: "#5c441c", panes: ["#ffd27a", "#ffe4ad", "#94733a", "#ffc458"] },
+  "win-dark":    { wall: "#34425e", panes: ["#4b5d80", "#4b5d80", "#7c6943", "#4b5d80"] },
+  "win-dark-hi": { wall: "#45567a", panes: ["#6b7fa6", "#6b7fa6", "#9a8558", "#6b7fa6"] },
+  "win-off":     { wall: "#222c3e", panes: ["#2a3549", "#2a3549", "#2a3549", "#2a3549"] },
+}
 
 function windowImage({ wall, panes }) {
   const scale = 2, size = 16 * scale;
@@ -132,6 +141,10 @@ export default function CityMap({ data, selectedId, hoveredId, onSelect, onHover
       });
       map.current = instance;
       instance.once("load", () => {
+        try {
+          instance.setSky({ "sky-color": "#1d2b4a", "horizon-color": "#3d3f63", "fog-color": "#1b2537",
+                            "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.7 });
+        } catch { /* older renderer: no sky, same map */ }
         addBuildings(instance, latestData.current, handlers, pins.current);
         setReady(true);
       });

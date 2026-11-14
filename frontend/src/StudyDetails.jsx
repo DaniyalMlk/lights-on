@@ -23,15 +23,15 @@ export default function StudyDetails({data, depth}) {
     context: "Context uses a neutral assumption until surroundings are measured."
   };
   return <>
-    <section className="block checks">
-      <h3>Building checks</h3>
+    <details className="block checks">
+      <summary>Building checks</summary>
       <ul className="check-list">
         <li><span>Podium</span><b>{ratio == null ? "floor area unavailable" : ratio.toFixed(2) + (ratio < .8 ? " · flagged below 0.80" : " · fine (0.80 or above)")}</b></li>
         <li><span>Dark area at 36 ft</span><b>{(100*dark).toFixed(1)}%{g.deep_plate && " · deep plate (dark band over 12 ft)"}</b></li>
         <li className={height.flag}><span>Floor-to-floor</span><b>{height.f2f_ft == null ? "unavailable" : height.f2f_ft + " ft · " + height.flag}</b></li>
         <li><span>Net-to-gross at {depth} ft</span><b>{(net*100).toFixed(1)}% <small>reference 72–82%</small></b></li>
       </ul>
-    </section>
+    </details>
     <details className="block"><summary>Score · {score.total}/100</summary>{Object.entries({geometry:45,economics:30,market:15,context:10}).map(([name,max]) =>
       <p key={name}><strong>{name} · {score.parts[name]}/{max}</strong><br/>{why[name]}</p>)}
       <p className="fine">Gensler benchmark weights: form 30, plate 30, servicing 20, envelope 10, context 10.</p></details>

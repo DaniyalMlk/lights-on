@@ -52,10 +52,10 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
   const daylight = depths["36"].daylight_share;
   const credit = incentive * (selected?.gfa_sf ?? 0);
   const swing = Math.max(1, ...(econ?.tornado ?? []).flatMap(t => [Math.abs(t.low_per_gsf), Math.abs(t.high_per_gsf)]));
-  const sources = [
-    ["CoStar", building.synthetic ? "sample data" : "property record", !building.synthetic],
-    ["Vexcel", building.footprint_origin === "vexcel" ? "outline used" : "outline not used", building.footprint_origin === "vexcel"],
-    ["Matterport", geometry.plate_source === "matterport_scan" ? "floor scan used" : "no full-floor scan", geometry.plate_source === "matterport_scan"],
+  const layers = [
+    ["CoStar", building.synthetic ? "sample data" : "record", !building.synthetic],
+    ["Vexcel", building.footprint_origin === "vexcel" ? "outline" : "not used", building.footprint_origin === "vexcel"],
+    ["Matterport", geometry.plate_source === "matterport_scan" ? "floor scan" : "no scan", geometry.plate_source === "matterport_scan"],
   ];
   const verdict = selected?.gated_out ? "Filtered out by vacancy" : selected?.short ?? "–";
 
@@ -65,24 +65,17 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
         <p className="eyebrow">{[building.address, `${building.stories} stories`].filter(Boolean).join(" · ")}</p>
         <h2>{building.name}</h2>
         {building.synthetic && <p className="tag">Sample data, not a real building</p>}
-        <ul className="sources" aria-label="Data used">{sources.map(([name, state, used]) =>
-          <li key={name} data-used={used} title={`${name}: ${state}`}><b>{name}</b> {state}</li>)}</ul>
+        <p className="layers">{layers.map(([name, state, used]) =>
+          <span key={name} data-used={used}>{name} <i>{state}</i></span>)}</p>
       </header>
 
-      <section className="kpis" aria-label="Key facts">
-        <div className="kpi">
-          <p className="kpi-value">{lo === hi ? lo.toLocaleString() : `${lo.toLocaleString()}–${hi.toLocaleString()}`}</p>
-          <p className="kpi-label">potential homes<small>30–42 ft layouts</small></p>
-        </div>
-        <div className="kpi">
-          <p className="kpi-value">{Math.round(daylight * 100)}%</p>
-          <p className="kpi-label">of the floor near a window<small>within 36 ft</small></p>
-        </div>
-        <div className={`kpi verdict-kpi ${selected?.lit ? "lit" : ""}`}>
-          <p className="kpi-value small">{verdict}</p>
-          <p className="kpi-label"><small>at ${incentive}/SF hypothetical incentive</small></p>
-        </div>
-      </section>
+      <dl className="stats" aria-label="Key facts">
+        <div><dt>Potential homes</dt><dd className="accent">{lo === hi ? lo.toLocaleString() : `${lo.toLocaleString()}–${hi.toLocaleString()}`}</dd>
+          <small>30–42 ft layouts</small></div>
+        <div><dt>Near a window</dt><dd>{Math.round(daylight * 100)}%</dd><small>of the floor, within 36 ft</small></div>
+        <div className={selected?.lit ? "lit" : ""}><dt>Pays for itself?</dt><dd className="words">{verdict}</dd>
+          <small>at ${incentive}/SF hypothetical incentive</small></div>
+      </dl>
 
       <section className="plate-card">
         <header>
@@ -90,17 +83,17 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
           <div className="segmented" role="group" aria-label="Unit depth">{[30, 36, 42].map(d =>
             <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>{d} ft</button>)}</div>
         </header>
-        <img className="plate" src={`/api/buildings/${encodeURIComponent(buildingId)}/plate.svg?depth=${depth}`}
-             alt={`Indicative floor plate at ${depth} ft unit depth`} />
-        <div className="plate-foot">
-          <p className="plate-count"><b><AnimatedNumber value={depths[depth].homes_per_floor} /></b> homes a floor ·{" "}
-            <b><AnimatedNumber value={depths[depth].homes} /></b> in the building at {depth} ft</p>
+        <div className="plate-frame">
+          <img className="plate" src={`/api/buildings/${encodeURIComponent(buildingId)}/plate.svg?depth=${depth}`}
+               alt={`Indicative floor plate at ${depth} ft unit depth`} />
           <ul className="plate-legend">{LEGEND.map(([key, name]) => <li key={key} className={key}>{name}</li>)}</ul>
-          <p className="plate-rule">Bedrooms need windows. Anything deeper than the band stays dark.</p>
         </div>
+        <p className="plate-count"><b><AnimatedNumber value={depths[depth].homes_per_floor} /></b> homes a floor,{" "}
+          <b><AnimatedNumber value={depths[depth].homes} /></b> in the building at {depth} ft.
+          {" "}Bedrooms need windows; anything deeper than the band stays dark.</p>
+        <p className="fine">Geometry: {building.footprint_source || "building footprint"}. Assumption: a centered core
+          takes 18% of the floor plate.</p>
       </section>
-      <p className="fine">Geometry: {building.footprint_source || "building footprint"}. Assumption: a centered core
-        takes 18% of the floor plate.</p>
 
       <ScanPanel building={building} />
 
@@ -110,10 +103,13 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
           <p className="verdict">{selected?.label}{selected?.gated_out && " · filtered out by vacancy"}</p>
           <ResidualRange worst={econ.cases.downside.residual + credit} base={econ.cases.base.residual + credit}
                          high={econ.cases.upside.residual + credit} />
-          <p className="fine">Indicative residual at the 36 ft layout: value as housing minus conversion cost and
-            developer margin{incentive ? `, plus a hypothetical $${incentive}/SF incentive` : ""}. Compared with
-            the {econ.inputs.reference_label || "assessed value"} ({building.synthetic ? "a sample figure" : "a CoStar figure, so not shown here"}),
-            not an offer price. Not included: {econ.excluded.join(", ")}. Incentives: may be eligible, verify with the program.</p>
+          <p className="fine">Indicative residual at the 36 ft layout, not an offer price.</p>
+          <details className="explain">
+            <summary>How this is worked out</summary>
+            <p>Value as housing minus conversion cost and developer margin{incentive ? `, plus a hypothetical $${incentive}/SF incentive` : ""},
+              compared with the {econ.inputs.reference_label || "assessed value"} ({building.synthetic ? "a sample figure" : "a CoStar figure, so not shown here"}).
+              Not included: {econ.excluded.join(", ")}. Incentives: a building may be eligible; verify with the program.</p>
+          </details>
 
           <h4>What moves it most</h4>
           {econ.tornado.map((t) => (
@@ -141,8 +137,7 @@ export default function BuildingPanel({ buildingId, selected, incentive }) {
                 <td>{tonnes(scenario.new_embodied_t_low)}–{tonnes(scenario.new_embodied_t_high)}</td></tr>)}
           </tbody>
         </table>
-        <p className="fine">Homes span the three modeled depths; rebuild assumes the same housing program. Literature
-          range (50–75% of new-build embodied carbon), not a measured saving for this building.</p>
+        <p className="fine">Literature range (50–75% of new-build embodied carbon), not a measured saving for this building.</p>
       </section>
 
       <StudyDetails data={data} depth={depth} />
