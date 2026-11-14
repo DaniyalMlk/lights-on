@@ -47,7 +47,7 @@ The spec changes **only at three checkpoints, and only on new information**:
 | Checkpoint | What can change it |
 |---|---|
 | **H2** (~10:30 pm Fri) | Workshop answers + data spike → GO / LITE / NO-GO (§9) |
-| **H8** (~4:30 am Sat, **moved to 10:00 am Sat**: the CoStar data only arrived Fri 10 pm) | Parameters frozen in `docs/preregistration.md` (a separate doc, not a spec version) |
+| **H8** (~4:30 am Sat, **moved to 10:00 am Sat**: the CoStar data only arrived Fri 10 pm; **frozen early, Sat 02:25 am**) | Parameters frozen in `docs/preregistration.md` (a separate doc, not a spec version) |
 | **H16** (~12:30 pm Sat) | Are all Must items working? If not, cut from Should, never from Must |
 
 Anything else goes into a GitHub issue, not this file.

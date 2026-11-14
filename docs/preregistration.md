@@ -1,6 +1,6 @@
 # Pre-registered tests
 
-Written down before the official validation run. Parameters are frozen Sat 10:00 am (`backend/config.py`). After the freeze, every change gets a line in the change log below, with the reason, before re-running anything. Misses get shown, not tuned away.
+Written down before the official validation run. Parameters are frozen Sat 02:25 am, moved up from 10:00 am (`backend/config.py`, see the change log). After the freeze, every change gets a line in the change log below, with the reason, before re-running anything. Misses get shown, not tuned away.
 
 **Not fully blind:** on Sat 00:30, before this file was committed, we ran every downtown building in our data once and printed some results (see the change log). Cases marked *seen* below were written after that run.
 
@@ -64,3 +64,4 @@ Report results per building, not as an accuracy percentage, in these words: "X o
 - Also before the official run: the checker now counts case 2's deep-plate condition toward pass or miss (it was in the pass condition from the start; the code only checked the home count).
 - Sat 01:55: no negative case. Figure 14 of the Brookings / Gensler study has no score per building, so no outside source calls a building in our data unsuitable. Case 4 is dropped. Scores and rankings had still not been printed or looked at.
 - Sat 02:20, logged before the code change goes in: a building whose Vexcel outline is within 15% of its typical floor uses that outline as its plate instead of the square stand-in. That is 5 of the 18 downtown office buildings. The other 13 outlines are much bigger than the typical floor (the base of the building, an attached garage, or a whole complex counted as one building), so they keep the square. A saved full-floor scan still comes first. No value in `config.py` changes (params stay `6ba9f5da`). None of the five is a validation case: 1801 Smith and 1415 Louisiana fail the 15% rule and keep the square, so cases 1 and 3b don't change, and case 2 runs on AECOM's numbers. Scores and rankings had still not been printed or looked at.
+- Sat 02:25: **freeze moved up from 10:00 am to now.** Every planned change is in (scanned plates, One City Centre on AECOM's numbers, the deep-plate check, Vexcel outlines). Parameter hash confirmed at the freeze: `6ba9f5da` (`config.py` unchanged since the first commit). The official run follows this commit. Any change after it gets a line here first, and the official result stays the one we report.
