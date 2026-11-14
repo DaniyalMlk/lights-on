@@ -4,23 +4,45 @@ import BuildingPanel from "./BuildingPanel.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import ProofPanel from "./ProofPanel.jsx";
 
-// A building "lights up" when its base-case residual, plus the incentive, covers its assessed value.
-function pencils(props, incentivePerSf) {
-  if (props.residual_base == null || !props.assessed_value) return false;
-  return props.residual_base + incentivePerSf * props.gfa_sf >= props.assessed_value;
+import BuildingList from "./BuildingList.jsx";
+
+function evaluate(p, incentive) {
+  if (p.residual_base == null || p.residual_worst == null || !p.assessed_value || !p.gfa_sf)
+    return { label: "Basis unavailable", covers: false };
+  const credit = incentive * p.gfa_sf;
+  if (p.residual_worst + credit >= p.assessed_value)
+    return { label: "Pencils at today's basis", covers: true };
+  const gap = (p.assessed_value - p.residual_base - credit) / p.gfa_sf;
+  if (gap <= 0) return { label: "Pencils at a distressed basis", covers: true };
+  return { label: `Needs $${Math.ceil(gap)}/SF of basis or incentives`, covers: false };
 }
 
 const TABS = ["Building", "Agent", "Proof"];
 
 export default function App() {
+  const [resetKey, setResetKey] = useState(0);
   const [buildings, setBuildings] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [incentive, setIncentive] = useState(0);
   const [vacancyGate, setVacancyGate] = useState(35);
   const [tab, setTab] = useState("Building");
 
+  const [loadError, setLoadError] = useState(false);
+  function restoreView(collection) {
+    const query = new URLSearchParams(window.location.search);
+    const id = query.get("demo");
+    setSelectedId(collection?.features.some(f => f.properties.id === id) ? id : null);
+    setTab(TABS.includes(query.get("tab")) ? query.get("tab") : "Building");
+    setIncentive(0);
+    setVacancyGate(35);
+    setResetKey(n => n + 1);
+  }
+  function selectBuilding(id) { setSelectedId(id); setTab("Building"); }
   useEffect(() => {
-    fetch("/api/buildings").then((r) => r.json()).then(setBuildings);
+    fetch("/api/buildings").then((r) => {
+      if (!r.ok) throw new Error();
+      return r.json();
+    }).then(collection => { setBuildings(collection); restoreView(collection); }).catch(() => setLoadError(true));
   }, []);
 
   // Recompute colors for the current slider values
@@ -29,7 +51,8 @@ export default function App() {
     const features = buildings.features.map((f) => {
       const p = f.properties;
       const gated = (p.vacancy ?? 0) * 100 < vacancyGate;
-      return { ...f, properties: { ...p, gated_out: gated, lit: !gated && pencils(p, incentive) } };
+      const verdict = evaluate(p, incentive);
+      return { ...f, properties: { ...p, label: verdict.label, gated_out: gated, lit: !gated && verdict.covers } };
     });
     return { ...buildings, features };
   }, [buildings, incentive, vacancyGate]);
@@ -38,17 +61,22 @@ export default function App() {
     ? mapData.features.filter((f) => f.properties.lit).reduce((sum, f) => sum + f.properties.homes, 0)
     : 0;
 
+  const selected = mapData?.features.find((f) => f.properties.id === selectedId)?.properties;
+
   return (
     <div className="app">
       <header className="topbar">
-        <h1>Lights On</h1>
-        <p>Which empty Houston office towers deserve a conversion study?</p>
-      </header>
+        <h1><i aria-hidden="true">▥</i> Lights On</h1>
+        <p>Office-to-housing screening</p>
+      <small>Houston, TX</small></header>
 
       <div className="layout">
         <div className="map-wrap">
-          {mapData && <CityMap data={mapData} onSelect={(id) => { setSelectedId(id); setTab("Building"); }} />}
-          <div className="controls">
+          {mapData && <CityMap key={resetKey} data={mapData} selectedId={selectedId} onSelect={selectBuilding} />}
+          <div className="map-title"><small>Conversion atlas</small><h2>Houston after dark</h2></div>
+          <div className="controls"><h3>Scenario settings</h3>
+            <button className="reset" onClick={() => restoreView(buildings)}>Reset view</button>
+            <div className="map-key"><span>Covers basis</span><span>Below basis / unavailable</span><span>Filtered / indicative</span></div>
             <label>
               Incentive: ${incentive}/SF
               <input type="range" min="0" max="250" step="5" value={incentive}
@@ -59,18 +87,25 @@ export default function App() {
               <input type="range" min="0" max="90" step="5" value={vacancyGate}
                      onChange={(e) => setVacancyGate(Number(e.target.value))} />
             </label>
-            <span>{litHomes.toLocaleString()} homes in towers that pencil (screening estimate)</span>
+            <div className="screen-total"><b>{mapData ? litHomes.toLocaleString() : "—"}</b> homes pass the financial screen</div>
           </div>
         </div>
 
-        <aside className="side">
+        <aside className="side" key={resetKey}>
+          <BuildingList features={mapData?.features} selectedId={selectedId} onSelect={selectBuilding} error={loadError} />
           <nav className="tabs">
             {TABS.map((t) => (
               <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>{t}</button>
             ))}
           </nav>
-          {tab === "Building" && <BuildingPanel buildingId={selectedId} />}
-          {tab === "Agent" && <AgentPanel buildingId={selectedId} />}
+          {selected?.map_only && tab !== "Proof" ? (
+            <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
+          ) : (
+            <>
+              {tab === "Building" && <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive} />}
+              {tab === "Agent" && <AgentPanel key={selectedId} buildingId={selectedId} />}
+            </>
+          )}
           {tab === "Proof" && <ProofPanel />}
         </aside>
       </div>

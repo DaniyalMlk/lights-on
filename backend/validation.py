@@ -117,6 +117,7 @@ def input_sensitivity(buildings: dict) -> list[dict]:
         rows.append({"building_id": b["id"], "name": b.get("name"),
                      "plate_source": with_fp["geometry"]["plate_source"],
                      "plate": plate_name(b, with_fp["geometry"]["plate_source"]),
+                     "vexcel_verified": plate_name(b, with_fp["geometry"]["plate_source"]) == "Vexcel outline",
                      "homes_costar_only": without["geometry"]["by_depth"][key]["homes"],
                      "homes_with_footprint": with_fp["geometry"]["by_depth"][key]["homes"],
                      "score_costar_only": without["score"]["total"],

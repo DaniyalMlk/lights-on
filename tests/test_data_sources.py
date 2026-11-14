@@ -31,7 +31,7 @@ def test_comps_rent_needs_enough_nearby_comps():
 
 
 def test_build_joins_and_reports_skips():
-    other = dict(ROW, PropertyID="102", PropertyName="No Footprint")
+    other = dict(ROW, PropertyID="102", PropertyName="No Footprint", Latitude="")
     retail = dict(ROW, PropertyID="103", PropertyType="Retail")
     buildings, skipped = build_buildings([ROW, other, retail], {"101": SQUARE}, field_map=FM)
     assert [b["id"] for b in buildings] == ["101"]
@@ -44,3 +44,8 @@ def test_field_map_file_overrides_placeholders(tmp_path):
     field_map = load_field_map(path)
     assert field_map["vacancy"] == "Vac" and field_map["id"] == DEFAULT_FIELD_MAP["id"]
     assert load_field_map(tmp_path / "missing.json") == DEFAULT_FIELD_MAP
+
+
+def test_coordinate_only_building_kept_without_analysis_footprint():
+    buildings, skipped = build_buildings([ROW], {}, field_map=FM)
+    assert not skipped and buildings[0]["footprint"] is None

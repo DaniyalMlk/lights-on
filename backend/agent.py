@@ -222,6 +222,8 @@ def _events_from_update(namespace: tuple, update: dict) -> list[dict]:
             summary = m.content if isinstance(m.content, str) else str(m.content)
             try:
                 parsed = json.loads(summary)
+                if m.name == "verify_numbers" and parsed.get("status") == "error":
+                    events.append({"type": "verifier_rejection", "rejected": parsed["values"]["rejected"]})
                 summary = f"{parsed.get('status', '')}: {parsed.get('summary', '')}"
             except (ValueError, AttributeError):
                 summary = summary[:300]
