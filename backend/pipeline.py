@@ -9,11 +9,13 @@ import json
 from pathlib import Path
 
 from backend import config as C
+from backend import matterport
 from backend.tools.carbon import scenarios
 from backend.tools.econ import econ
 from backend.tools.geo import to_feet
 from backend.tools.geometry import analyze_plate, floor_check, floor_to_floor
 from backend.tools.layout import layout_units, render_svg
+from backend.tools.matterport_plan import MIN_COVERAGE, coverage, plate_and_core
 
 ROOT = Path(__file__).resolve().parent.parent
 WORK_DIR = ROOT / "work"
@@ -46,14 +48,43 @@ def score(daylight_share: float, econ_out: dict | None, b: dict) -> dict:
     return {"total": round(total, 1), "parts": {k: round(v * w[k], 1) for k, v in parts.items()}}
 
 
-def analyze(b: dict, save: bool = True) -> dict:
-    plate = to_feet(b["footprint"])
+def scan_plate(b: dict) -> dict | None:
+    """The building's real floor plate from a saved full-floor Matterport scan, or None to keep its footprint.
+
+    Same rule as the 3D labels: the scan has to cover at least 85% of the typical floor, otherwise it's a suite.
+    The plate is in the scan's own frame (feet, not north-aligned), so it replaces the footprint for the
+    geometry only; the map keeps drawing the georeferenced footprint.
+    """
+    if b.get("synthetic") or not b.get("typical_floor_sf"):
+        return None                                      # sample buildings never get real scans; no floor size, no check
+    for scan in matterport.scans_for(b, matterport.load_index()):
+        model = matterport.load_floor(scan["model_id"]) if scan["full_floor"] else None
+        if not model:
+            continue
+        plate, core = plate_and_core(model)
+        if plate is None or coverage(plate, b["typical_floor_sf"]) < MIN_COVERAGE:
+            continue
+        return {"plate": plate, "core": core, "model_id": scan["model_id"], "matched_by": scan["matched_by"],
+                "coverage": coverage(plate, b["typical_floor_sf"])}
+    return None
+
+
+def analyze(b: dict, save: bool = True, use_scan: bool = True) -> dict:
+    """Run every tool on one building. use_scan=False keeps the footprint even if a scan is saved (for comparisons)."""
+    scan = scan_plate(b) if use_scan else None
+    plate = scan["plate"] if scan else to_feet(b["footprint"])
+    if scan:
+        plate_label = f"the walls of a scanned full floor (Matterport model {scan['model_id']})"
+        plate_source = "matterport.scan"
+    else:
+        plate_label = b.get("footprint_source")
+        plate_source = plate_label or "vexcel.footprint"
     stories = int(b["stories"])
     residential_floors = max(stories - C.NON_RESIDENTIAL_FLOORS, 1)
     gfa = b.get("rba") or plate.area * stories
-    gfa_source = "costar.rba" if b.get("rba") else "vexcel.footprint x costar.stories"
+    gfa_source = "costar.rba" if b.get("rba") else f"{plate_source} x costar.stories"
 
-    geo = analyze_plate(plate)
+    geo = analyze_plate(plate, scan["core"] if scan else None)      # core=None keeps the assumed centered core
     by_depth, layouts = {}, {}
     for depth, z in geo["by_depth"].items():
         lay = layout_units(plate, z.units, z.effective_depth_ft, geo["core"])
@@ -78,6 +109,10 @@ def analyze(b: dict, save: bool = True) -> dict:
 
     geometry_out = {
         "plate_sf": round(plate.area),
+        "plate_source": "matterport_scan" if scan else "footprint",
+        "scan_model_id": scan["model_id"] if scan else None,
+        "scan_matched_by": scan["matched_by"] if scan else None,
+        "scan_coverage_share": round(scan["coverage"], 3) if scan else None,
         "core_sf": round(geo["core_sf"]),
         "core_source": geo["core_source"],
         "facade_ft": round(geo["facade_ft"]),
@@ -91,7 +126,7 @@ def analyze(b: dict, save: bool = True) -> dict:
         "gfa_source": gfa_source,
         "by_depth": by_depth,
         "matterport_worth_pulling": near_threshold and geo["core_source"] != "matterport",
-        "source": "vexcel.footprint + costar.stories + config.py",
+        "source": f"{plate_source} + costar.stories + config.py",
     }
 
     econ_out = None
@@ -106,7 +141,8 @@ def analyze(b: dict, save: bool = True) -> dict:
 
     gated = (b.get("vacancy") or 0) < C.VACANCY_GATE
     result = {
-        "building": {k: v for k, v in b.items() if k != "footprint"},
+        "building": {**{k: v for k, v in b.items() if k != "footprint"},
+                     **({"footprint_source": plate_label} if plate_label else {})},
         "gated_out": gated,
         "geometry": geometry_out,
         "econ": econ_out,

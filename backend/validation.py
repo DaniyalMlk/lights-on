@@ -67,13 +67,18 @@ def costar_only_plate(b: dict) -> dict:
 
 
 def input_sensitivity(buildings: dict) -> list[dict]:
-    """Does the footprint change the answer? Shows sensitivity to the layer, not accuracy."""
+    """Does the real plate change the answer? Shows sensitivity to the layer, not accuracy.
+
+    "CoStar only" is a square of the typical floor. "With footprint" is the best plate we have: the scanned
+    floor where a full-floor Matterport scan is saved, the footprint otherwise (plate_source says which).
+    """
     rows = []
     for b in buildings.values():
         with_fp = analyze(b, save=False)
-        without = analyze(costar_only_plate(b), save=False)
+        without = analyze(costar_only_plate(b), save=False, use_scan=False)
         key = str(C.BASE_DEPTH_FT)
         rows.append({"building_id": b["id"], "name": b.get("name"),
+                     "plate_source": with_fp["geometry"]["plate_source"],
                      "homes_costar_only": without["geometry"]["by_depth"][key]["homes"],
                      "homes_with_footprint": with_fp["geometry"]["by_depth"][key]["homes"],
                      "score_costar_only": without["score"]["total"],
