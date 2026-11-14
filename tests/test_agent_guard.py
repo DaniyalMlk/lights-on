@@ -40,3 +40,14 @@ def test_costars_ok_opens_the_real_list(real_data_loaded, monkeypatch):
     monkeypatch.setenv("COSTAR_LLM_OK", "yes")
     assert A._buildings() is REAL
     assert "/work/" in A._work_routes()
+
+
+def test_max_rpm_paces_the_model(monkeypatch):
+    from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+    monkeypatch.setattr(A, "init_chat_model", lambda name, **kw: GenericFakeChatModel(messages=iter([]), **kw))
+    monkeypatch.setenv("LIGHTS_ON_MODEL", "google_genai:some-model")
+    monkeypatch.setenv("LIGHTS_ON_MAX_RPM", "12")
+    limiter = A._model().rate_limiter
+    assert limiter is not None and abs(limiter.requests_per_second - 0.2) < 1e-9
+    monkeypatch.delenv("LIGHTS_ON_MAX_RPM")
+    assert A._model() == "google_genai:some-model"               # no pacing: the plain string, as before

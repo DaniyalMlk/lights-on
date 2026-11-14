@@ -13,6 +13,8 @@ import os
 from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend
 from langchain.agents.middleware import TodoListMiddleware
+from langchain.chat_models import init_chat_model
+from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_core.tools import tool
 
 from backend import config as C
@@ -199,10 +201,20 @@ def _work_routes() -> dict:
     return routes
 
 
+def _model():
+    """The model from LIGHTS_ON_MODEL. LIGHTS_ON_MAX_RPM paces requests to stay under a free tier's per-minute limit."""
+    model = os.environ["LIGHTS_ON_MODEL"]
+    max_rpm = os.environ.get("LIGHTS_ON_MAX_RPM")
+    if isinstance(model, str) and max_rpm:
+        limiter = InMemoryRateLimiter(requests_per_second=float(max_rpm) / 60, check_every_n_seconds=0.1)
+        return init_chat_model(model, rate_limiter=limiter)
+    return model
+
+
 def build_agent():
     backend = CompositeBackend(default=StateBackend(), routes=_work_routes())
     return create_deep_agent(
-        model=os.environ["LIGHTS_ON_MODEL"],
+        model=_model(),
         tools=[],                      # the orchestrator plans and delegates; each sub-agent has its own tools
         system_prompt=INSTRUCTIONS,
         subagents=SUBAGENTS,
