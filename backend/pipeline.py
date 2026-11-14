@@ -114,18 +114,21 @@ def analyze(b: dict, save: bool = True) -> dict:
         "score": score(share, econ_out, b),
     }
     if save:
-        save_result(b["id"], result, render_svg(plate, geo["core"], geo["by_depth"][C.BASE_DEPTH_FT],
-                                               layouts[C.BASE_DEPTH_FT]["units"], b.get("name", b["id"])))
+        plates = {depth: render_svg(plate, geo["core"], zones, layouts[depth]["units"],
+                                   b.get("name", b["id"])) for depth, zones in geo["by_depth"].items()}
+        save_result(b["id"], result, plates)
     return result
 
 
-def save_result(building_id: str, result: dict, svg: str) -> None:
+def save_result(building_id: str, result: dict, plates: dict) -> None:
     folder = WORK_DIR / building_id
     folder.mkdir(parents=True, exist_ok=True)
     for key in ("building", "geometry", "econ", "carbon", "score"):
         (folder / f"{key}.json").write_text(json.dumps(result[key], indent=2))
     (folder / "status.json").write_text(json.dumps({"gated_out": result["gated_out"]}))
-    (folder / "plate.svg").write_text(svg)
+    for depth, svg in plates.items():
+        (folder / f"plate_{depth}.svg").write_text(svg)
+    (folder / "plate.svg").write_text(plates[C.BASE_DEPTH_FT])
 
 
 def load_result(building_id: str) -> dict | None:

@@ -4,10 +4,17 @@ import BuildingPanel from "./BuildingPanel.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import ProofPanel from "./ProofPanel.jsx";
 
-// A building "lights up" when its base-case residual, plus the incentive, covers its assessed value.
-function pencils(props, incentivePerSf) {
-  if (props.residual_base == null || !props.assessed_value) return false;
-  return props.residual_base + incentivePerSf * props.gfa_sf >= props.assessed_value;
+import BuildingList from "./BuildingList.jsx";
+
+function evaluate(p, incentive) {
+  if (p.residual_base == null || p.residual_worst == null || !p.assessed_value || !p.gfa_sf)
+    return { label: "Basis unavailable", covers: false };
+  const credit = incentive * p.gfa_sf;
+  if (p.residual_worst + credit >= p.assessed_value)
+    return { label: "Pencils at today's basis", covers: true };
+  const gap = (p.assessed_value - p.residual_base - credit) / p.gfa_sf;
+  if (gap <= 0) return { label: "Pencils at a distressed basis", covers: true };
+  return { label: `Needs $${Math.ceil(gap)}/SF of basis or incentives`, covers: false };
 }
 
 const TABS = ["Building", "Agent", "Proof"];
@@ -19,8 +26,13 @@ export default function App() {
   const [vacancyGate, setVacancyGate] = useState(35);
   const [tab, setTab] = useState("Building");
 
+  const [loadError, setLoadError] = useState(false);
+  function selectBuilding(id) { setSelectedId(id); setTab("Building"); }
   useEffect(() => {
-    fetch("/api/buildings").then((r) => r.json()).then(setBuildings);
+    fetch("/api/buildings").then((r) => {
+      if (!r.ok) throw new Error();
+      return r.json();
+    }).then(setBuildings).catch(() => setLoadError(true));
   }, []);
 
   // Recompute colors for the current slider values
@@ -29,7 +41,8 @@ export default function App() {
     const features = buildings.features.map((f) => {
       const p = f.properties;
       const gated = (p.vacancy ?? 0) * 100 < vacancyGate;
-      return { ...f, properties: { ...p, gated_out: gated, lit: !gated && pencils(p, incentive) } };
+      const verdict = evaluate(p, incentive);
+      return { ...f, properties: { ...p, label: verdict.label, gated_out: gated, lit: !gated && verdict.covers } };
     });
     return { ...buildings, features };
   }, [buildings, incentive, vacancyGate]);
@@ -37,6 +50,8 @@ export default function App() {
   const litHomes = mapData
     ? mapData.features.filter((f) => f.properties.lit).reduce((sum, f) => sum + f.properties.homes, 0)
     : 0;
+
+  const selected = mapData?.features.find((f) => f.properties.id === selectedId)?.properties;
 
   return (
     <div className="app">
@@ -47,8 +62,9 @@ export default function App() {
 
       <div className="layout">
         <div className="map-wrap">
-          {mapData && <CityMap data={mapData} onSelect={(id) => { setSelectedId(id); setTab("Building"); }} />}
+          {mapData && <CityMap data={mapData} selectedId={selectedId} onSelect={selectBuilding} />}
           <div className="controls">
+            <div className="map-key"><span>Gold: covers basis</span> · Navy: below basis or unavailable · Gray: filtered or indicative location</div>
             <label>
               Incentive: ${incentive}/SF
               <input type="range" min="0" max="250" step="5" value={incentive}
@@ -64,13 +80,20 @@ export default function App() {
         </div>
 
         <aside className="side">
+          <BuildingList features={mapData?.features} selectedId={selectedId} onSelect={selectBuilding} error={loadError} />
           <nav className="tabs">
             {TABS.map((t) => (
               <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>{t}</button>
             ))}
           </nav>
-          {tab === "Building" && <BuildingPanel buildingId={selectedId} />}
-          {tab === "Agent" && <AgentPanel buildingId={selectedId} />}
+          {selected?.map_only && tab !== "Proof" ? (
+            <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
+          ) : (
+            <>
+              {tab === "Building" && <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive} />}
+              {tab === "Agent" && <AgentPanel key={selectedId} buildingId={selectedId} />}
+            </>
+          )}
           {tab === "Proof" && <ProofPanel />}
         </aside>
       </div>

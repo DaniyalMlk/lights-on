@@ -74,6 +74,7 @@ def input_sensitivity(buildings: dict) -> list[dict]:
         without = analyze(costar_only_plate(b), save=False)
         key = str(C.BASE_DEPTH_FT)
         rows.append({"building_id": b["id"], "name": b.get("name"),
+                     "vexcel_verified": str(b.get("footprint_source", "")).lower() == "vexcel" and not b.get("synthetic"),
                      "homes_costar_only": without["geometry"]["by_depth"][key]["homes"],
                      "homes_with_footprint": with_fp["geometry"]["by_depth"][key]["homes"],
                      "score_costar_only": without["score"]["total"],

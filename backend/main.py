@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from backend import matterport
 from backend.annotations import floor_labels
+from backend.data_sources import has_map_location, indicative_map_square
 from backend.pipeline import ROOT, WORK_DIR, analyze, load_result
 from backend.tools.verifier import verify
 
@@ -35,7 +36,9 @@ def load_buildings() -> dict[str, dict]:
     return {b["id"]: b for b in rows}
 
 
-BUILDINGS = load_buildings()
+_records = load_buildings()
+BUILDINGS = {key: b for key, b in _records.items() if b.get("footprint")}
+MAP_ONLY = [b for b in _records.values() if not b.get("footprint") and has_map_location(b)]
 
 
 def get_result(building_id: str) -> dict:
@@ -65,6 +68,9 @@ def buildings_geojson():
                 "name": b.get("name", b["id"]),
                 "height_ft": b.get("height_ft") or b["stories"] * 13,
                 "stories": b["stories"],
+                "address": b.get("address"),
+                "residual_worst": (econ.get("cases") or {}).get("downside", {}).get("residual"),
+                "indicative": "square stand-in" in (b.get("footprint_source") or ""),
                 "homes": base["homes"],
                 "score": r["score"]["total"],
                 "gated_out": r["gated_out"],
@@ -74,6 +80,13 @@ def buildings_geojson():
                 "assessed_value": b.get("assessed_value"),
                 "gfa_sf": r["geometry"]["gfa_sf"],
             },
+        })
+    for b in MAP_ONLY:
+        # A fixed-size location symbol. Never pass it to the analysis pipeline.
+        features.append({
+            "type": "Feature", "geometry": indicative_map_square(b["lat"], b["lon"]),
+            "properties": {"id": b["id"], "name": b.get("name") or b["id"],
+                           "indicative": True, "map_only": True, "height_ft": 0},
         })
     return {"type": "FeatureCollection", "features": features}
 
@@ -91,10 +104,26 @@ def building_reanalyze(building_id: str):
 
 
 @app.get("/api/buildings/{building_id}/plate.svg")
-def building_svg(building_id: str):
-    get_result(building_id)
-    svg = (WORK_DIR / building_id / "plate.svg").read_text()
+def building_svg(building_id: str, depth: int = 36):
+    if depth not in (30, 36, 42):
+        raise HTTPException(422, "Supported depths are 30, 36 and 42 ft")
+    if building_id not in BUILDINGS:
+        raise HTTPException(404, "Unknown building")
+    path = WORK_DIR / building_id / f"plate_{depth}.svg"
+    if not path.exists():
+        analyze(BUILDINGS[building_id])
+    svg = path.read_text()
     return Response(svg, media_type="image/svg+xml")
+
+
+@app.get("/api/buildings/{building_id}/recording")
+def recording(building_id: str):
+    if building_id not in BUILDINGS:
+        raise HTTPException(404, "Unknown building")
+    path = WORK_DIR / building_id / "trace.json"
+    if not path.exists():
+        raise HTTPException(404, "No recorded run for this building")
+    return json.loads(path.read_text())
 
 
 @app.get("/api/buildings/{building_id}/labels")

@@ -106,6 +106,22 @@ def comps_rent(b: dict, comps: list[dict]) -> tuple[float | None, int]:
     return statistics.median(nearby), len(nearby)
 
 
+def indicative_map_square(lat: float, lon: float) -> dict:
+    """A 60 ft location symbol for the map. Never an analysis footprint."""
+    dlat = 30 / 364_000
+    dlon = dlat / math.cos(math.radians(lat))
+    ring = [[lon - dlon, lat - dlat], [lon + dlon, lat - dlat],
+            [lon + dlon, lat + dlat], [lon - dlon, lat + dlat],
+            [lon - dlon, lat - dlat]]
+    return {"type": "Polygon", "coordinates": [ring]}
+
+
+def has_map_location(b: dict) -> bool:
+    lat, lon = b.get("lat"), b.get("lon")
+    return (isinstance(lat, (int, float)) and -85 <= lat <= 85
+            and isinstance(lon, (int, float)) and -180 <= lon <= 180)
+
+
 def build_buildings(costar_rows: list[dict], footprints: dict, comps: list[dict] | None = None,
                     office_only: bool = True, field_map: dict = FIELD_MAP) -> tuple[list[dict], list[dict]]:
     """Join CoStar records with footprints (by id) and rent comps. Returns (buildings, skipped with reasons)."""
@@ -115,14 +131,14 @@ def build_buildings(costar_rows: list[dict], footprints: dict, comps: list[dict]
         if office_only and b.get("property_type") and "office" not in str(b["property_type"]).lower():
             continue
         reasons = []
-        if b["id"] not in footprints:
+        if not footprints.get(b["id"]) and not has_map_location(b):
             reasons.append("no footprint")
-        if not b.get("stories"):
+        if not b.get("stories") and footprints.get(b["id"]):
             reasons.append("no stories")
         if reasons:
             skipped.append({"id": b["id"], "name": b.get("name"), "reasons": reasons})
             continue
-        b["footprint"] = footprints[b["id"]]
+        b["footprint"] = footprints.get(b["id"])
         b["mf_rent_psf_month"], b["rent_comps_used"] = comps_rent(b, comps or [])
         b["synthetic"] = False
         buildings.append(b)
