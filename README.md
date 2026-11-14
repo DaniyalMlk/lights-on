@@ -2,14 +2,14 @@
 
 Which empty offices in downtown Houston can become homes, and at what price?
 
-A quarter of Houston's office space is empty. Turning offices into apartments adds housing and avoids the carbon of tearing buildings down, but most towers can't convert: their floors are too deep, and bedrooms need windows. Lights On screens downtown office buildings, measures how much of each floor is close enough to a window, sketches the apartments that could fit, and estimates what's left to pay for the building after conversion costs. It's a screening tool: it tells a lender or owner which buildings deserve a professional conversion study, not what to bid. An agent writes the memo and the owner email, and a verifier rejects any number that didn't come from our tools.
+About a quarter of downtown Houston's office space is empty (25.5% in Q3 2026, CBRE Houston Office Figures). Turning offices into apartments adds housing and avoids the carbon of tearing buildings down, but the first physical test is daylight: bedrooms need windows, and a deep floor leaves a dark middle that no layout can fix. Lights On screens downtown office buildings, measures how much of each floor is close enough to a window, sketches the apartments that could fit, and estimates what's left to pay for the building after conversion costs. It's a screening tool: it tells a lender or owner which buildings deserve a professional conversion study, not what to bid. An agent writes the memo and the owner email, and a verifier rejects any number that didn't come from our tools.
 
 Built at HackPrinceton Fall 2026 for the Sustainability track and the CoStar "Inside and Out" challenge.
 
 ## How it works
 
 1. **Screen**: CoStar data, filtered by vacancy.
-2. **Measure**: the Vexcel footprint gives the floor plate. We split it into a units band (within 30/36/42 ft of a window), a corridor, a dark zone and the core.
+2. **Measure**: the floor plate comes from the best source we have: a Matterport scan of a full floor, else the Vexcel outline when it matches the typical floor, else a square stand-in that the app labels as one. We split it into a units band (within 30/36/42 ft of a window), a corridor, a dark zone and the core.
 3. **Draw**: we cut the units band into studios, 1BRs and corner 2BRs and count homes per floor.
 4. **Price**: value as housing minus conversion cost and developer margin = an indicative residual. Three scenarios (downside / base / upside), the two inputs that move it most, and the costs we don't model.
 5. **Compare**: an illustrative embodied-carbon range for converting vs building new.
