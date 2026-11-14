@@ -69,3 +69,11 @@ def test_labels_endpoint(monkeypatch):
     assert out["model_id"] == "SCAN1" and len(out["labels"]) >= 4
     assert client.get("/api/buildings/NOPE/labels").status_code == 404
     assert client.get("/api/config").json() == {"matterport_sdk_key": "sdk-test"}
+
+
+def test_labels_never_print_costar_floor_area():
+    """CoStar's typical floor is used for the coverage check, but its value stays off screen."""
+    costar_floor = round(FULL_FLOOR_SF * 1.03)                  # a little more than the scan measures
+    out = floor_labels(FLOOR, costar_floor)
+    text = " ".join(label["title"] + " " + label["detail"] for label in out["labels"])
+    assert out["labels"] and f"{costar_floor:,}" not in text and str(costar_floor) not in text

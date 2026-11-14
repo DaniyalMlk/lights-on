@@ -74,7 +74,7 @@ def analyze(b: dict, save: bool = True, use_scan: bool = True) -> dict:
     scan = scan_plate(b) if use_scan else None
     plate = scan["plate"] if scan else to_feet(b["footprint"])
     if scan:
-        plate_label = f"the walls of a scanned full floor (Matterport model {scan['model_id']})"
+        plate_label = "the walls of a scanned full floor (Matterport)"
         plate_source = "matterport.scan"
     else:
         plate_label = b.get("footprint_source")

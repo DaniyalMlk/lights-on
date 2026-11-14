@@ -77,7 +77,7 @@ def floor_labels(model: dict, typical_floor_sf: float | None = None) -> dict:
     labels.append({
         "kind": "checked" if coverage is not None else "measured",
         "title": f"Floor: {plate.area:,.0f} sf inside the walls",
-        "detail": (f"{coverage:.0%} of the typical floor in CoStar ({typical_floor_sf:,.0f} sf), so the scan covers the whole floor."
+        "detail": (f"{coverage:.0%} of the typical floor in CoStar, so the scan covers the whole floor."
                    if coverage is not None else "Measured from the scan. No second source to compare with."),
         "position": _position(_largest(base.corridor).representative_point(), height_m),
     })

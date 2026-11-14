@@ -35,7 +35,8 @@ def test_full_floor_scan_becomes_the_plate():
     assert g["plate_sf"] == pytest.approx(SCAN_SF, rel=0.01)
     assert g["scan_coverage_share"] == pytest.approx(1.0, abs=0.02)
     assert g["core_source"] == "matterport"                         # this scan shows its core
-    assert "scan" in r["building"]["footprint_source"] and "SCAN1" in r["building"]["footprint_source"]
+    assert "scan" in r["building"]["footprint_source"]
+    assert "SCAN1" not in r["building"]["footprint_source"]        # model ids never reach the screen
     assert "matterport" in g["source"]
 
 
