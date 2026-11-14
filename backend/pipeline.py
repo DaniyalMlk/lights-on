@@ -98,7 +98,8 @@ def analyze(b: dict, save: bool = True) -> dict:
     if b.get("mf_rent_psf_month"):
         nsf = base["home_nsf_per_floor"] * residential_floors
         econ_out = econ(b["mf_rent_psf_month"], nsf, gfa, share, b.get("assessed_value"))
-        econ_out["source"] = "costar.multifamily_comps + costar.assessed_value + config.py"
+        econ_out["inputs"]["reference_label"] = b.get("reference_source") or "assessed value"
+        econ_out["source"] = "costar.multifamily_comps + costar reference value + config.py"
 
     carbon_out = scenarios(gfa, base["homes"])
     carbon_out["source"] = "config.py (embodied carbon literature range)"

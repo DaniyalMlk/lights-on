@@ -45,7 +45,7 @@ export default function BuildingPanel({ buildingId }) {
             Value as housing minus conversion cost and developer margin: {money(econ.cases.downside.residual)} (downside) ·{" "}
             <b>{money(econ.cases.base.residual)}</b> (base) · {money(econ.cases.upside.residual)} (upside)
           </p>
-          <p className="muted small">Compared with the assessed value ({money(econ.inputs.reference_value_assessed)}), not an offer price. Not included: {econ.excluded.join(", ")}.</p>
+          <p className="muted small">Compared with the {econ.inputs.reference_label || "assessed value"} ({money(econ.inputs.reference_value_assessed)}), not an offer price. Not included: {econ.excluded.join(", ")}.</p>
           <p className="verdict">{econ.verdict.text}</p>
           <h3>What moves it most</h3>
           {econ.tornado.map((t) => (
