@@ -14,6 +14,8 @@ import re
 from pathlib import Path
 
 import httpx
+from shapely.geometry import LineString, Polygon
+from shapely.ops import polygonize, unary_union
 
 from backend.data_sources import miles_between
 
@@ -35,6 +37,7 @@ FLOOR_QUERY = """query Floor($id: ID!) { model(id: $id) {
   floors { id label vertices { id position { x y } } edges { id type thickness vertices { id } } }
   rooms { id floor { id } classifications { label confidence } boundary { edges { id } }
           dimensions(units: metric) { areaFloor width depth height } }
+  panoLocations { id position { x y z } }
 } }"""
 
 
@@ -101,3 +104,23 @@ def scans_for(building: dict, index: list[dict]) -> list[dict]:
                           "matched_by": "costar_id" if same_id else "distance",
                           "saved": (FLOORS_DIR / f"{row['sid']}.json").exists()})
     return sorted(found, key=lambda s: (not s["full_floor"], -s["panos"]))
+
+
+def floor_outline(model: dict) -> Polygon | None:
+    """The floor's outer outline from its wall graph, in the scan's own frame (metres). None if the walls don't close."""
+    floors = model.get("floors") or []
+    if not floors:
+        return None
+    points = {v["id"]: (v["position"]["x"], v["position"]["y"]) for v in floors[0]["vertices"]}
+    walls = []
+    for edge in floors[0]["edges"]:
+        ends = [v["id"] for v in edge["vertices"]]
+        if len(ends) == 2 and all(e in points for e in ends):
+            walls.append(LineString([points[ends[0]], points[ends[1]]]))
+    faces = list(polygonize(unary_union(walls)))
+    if not faces:
+        return None
+    outline = unary_union(faces).buffer(0.3).buffer(-0.3)      # close hairline gaps between rooms
+    if outline.geom_type == "MultiPolygon":
+        outline = max(outline.geoms, key=lambda part: part.area)
+    return Polygon(outline.exterior)

@@ -14,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
+from backend import matterport
+from backend.annotations import floor_labels
 from backend.pipeline import ROOT, WORK_DIR, analyze, load_result
 from backend.tools.verifier import verify
 
@@ -93,6 +95,29 @@ def building_svg(building_id: str):
     get_result(building_id)
     svg = (WORK_DIR / building_id / "plate.svg").read_text()
     return Response(svg, media_type="image/svg+xml")
+
+
+@app.get("/api/buildings/{building_id}/labels")
+def building_labels(building_id: str):
+    """Measured labels for the building's scanned office floor, in the Matterport model's own coordinates."""
+    if building_id not in BUILDINGS:
+        raise HTTPException(404, f"Unknown building {building_id}")
+    b = BUILDINGS[building_id]
+    reason = "no full-floor Matterport scan saved for this building"
+    for scan in matterport.scans_for(b, matterport.load_index()):
+        model = matterport.load_floor(scan["model_id"]) if scan["full_floor"] else None
+        if model:
+            out = floor_labels(model, b.get("typical_floor_sf"))
+            if out["labels"]:
+                return {"model_id": scan["model_id"], "frame": "Matterport model coordinates, metres, z up", **out}
+            reason = out["reason"]
+    return {"model_id": None, "labels": [], "reason": reason}
+
+
+@app.get("/api/config")
+def frontend_config():
+    """The Matterport Showcase SDK key from .env, so it never sits in the repo or the JS bundle."""
+    return {"matterport_sdk_key": os.environ.get("MATTERPORT_SDK_KEY") or None}
 
 
 @app.get("/api/proof")
