@@ -18,6 +18,7 @@ from backend import matterport
 from backend.annotations import floor_labels
 from backend.data_sources import has_map_location, indicative_map_square
 from backend.pipeline import ROOT, WORK_DIR, analyze, load_result
+from backend.redact import protected_values, redact
 from backend.tools.verifier import verify
 
 load_dotenv()
@@ -123,7 +124,20 @@ def recording(building_id: str):
     path = WORK_DIR / building_id / "trace.json"
     if not path.exists():
         raise HTTPException(404, "No recorded run for this building")
-    return json.loads(path.read_text())
+    trace = json.loads(path.read_text())
+    trace["events"] = redact(trace.get("events", []), _protect(building_id))
+    return trace
+
+
+def _protect(building_id: str | None) -> dict:
+    """CoStar figures to keep off the screen: one building's, or every building's for a run without one."""
+    ids = [building_id] if building_id in BUILDINGS else list(BUILDINGS)
+    merged = {"large": [], "rents": []}
+    for i in ids:
+        values = protected_values(BUILDINGS[i], load_result(i))
+        merged["large"] += values["large"]
+        merged["rents"] += values["rents"]
+    return merged
 
 
 @app.get("/api/buildings/{building_id}/labels")
@@ -192,8 +206,9 @@ def agent_stream(building_id: str | None = None, goal: str = AgentRequest().goal
         try:
             if not os.getenv("LIGHTS_ON_MODEL"):
                 raise RuntimeError("no model configured")
+            protect = _protect(building_id)
             for e in agent.stream_agent(goal, building_id):
-                yield f"data: {json.dumps(e)}\n\n"
+                yield f"data: {json.dumps(redact(e, protect))}\n\n"
                 if e["type"] == "timeout":
                     raise RuntimeError("live run took too long")
         except Exception as err:
