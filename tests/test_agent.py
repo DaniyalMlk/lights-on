@@ -1,8 +1,24 @@
 """Smoke test: the agent graph builds and a scripted model can call our tools. No API key needed."""
+import json
+from pathlib import Path
+
+import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
 from backend import agent as A
+from backend import pipeline
+
+SAMPLE_FILE = Path(__file__).resolve().parent.parent / "backend" / "sample_buildings.json"
+SAMPLES = {b["id"]: b for b in json.loads(SAMPLE_FILE.read_text())["buildings"]}
+
+
+@pytest.fixture(autouse=True)
+def sample_buildings(monkeypatch, tmp_path):
+    """Always test on the synthetic samples, even on a laptop that has real CoStar data in data/."""
+    monkeypatch.setattr(A, "_buildings", lambda: SAMPLES)
+    monkeypatch.setattr(A, "WORK_DIR", tmp_path)
+    monkeypatch.setattr(pipeline, "WORK_DIR", tmp_path)
 
 
 class ScriptedModel(GenericFakeChatModel):
