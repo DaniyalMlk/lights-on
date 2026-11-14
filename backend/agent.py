@@ -78,7 +78,7 @@ def analyze_building(building_id: str) -> str:
         "summary": f"{base['homes']} homes at {C.BASE_DEPTH_FT} ft; score {r['score']['total']}",
         "values": {"homes_by_depth": {d: v["homes"] for d, v in g["by_depth"].items()},
                    "daylight_share": base["daylight_share"], "deep_plate": g["deep_plate"],
-                   "verdict": (r["econ"] or {}).get("verdict"), "score": r["score"]},
+                   "verdict": ((r["econ"] or {}).get("verdict") or {}).get("text"), "score": r["score"]},
         "source": f"/work/{building_id}/",
         "next_actions": next_actions,
     })

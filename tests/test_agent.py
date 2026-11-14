@@ -118,3 +118,11 @@ def test_get_results_gives_the_writer_every_number_in_one_call(tmp_path):
     assert json.loads(A.get_results.invoke({"building_id": "Sample A"}))["status"] == "error"
     text = json.dumps(v)
     assert "vacancy" not in text and "rent" not in text and "reference" not in text and "gfa" not in text
+
+
+def test_analyze_building_gives_the_verdict_as_words_not_a_code():
+    """Memos used to print the internal code "negative_residual"; the analyst now only sees the sentence."""
+    out = json.loads(A.analyze_building.invoke({"building_id": "SAMPLE-2"}))
+    verdict = out["values"]["verdict"]
+    assert isinstance(verdict, str) and verdict
+    assert "_" not in json.dumps(out["values"]["verdict"])
