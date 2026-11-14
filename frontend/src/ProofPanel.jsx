@@ -21,7 +21,7 @@ function CaseRow({ c }) {
     {c.deep_plate != null && <p className="muted small">Deep-plate flag: {c.deep_plate ? "fires" : "does not fire"}</p>}
     {c.our_verdict && <p className="muted small">Our verdict: {c.our_verdict}</p>}
     {c.inputs && c.inputs !== "our data" && <p className="muted small">Inputs: {c.inputs}</p>}
-    <strong className={c.status}>{c.status}{c.error_pct != null ? ` (${c.error_pct}%)` : ""}</strong>
+    <strong className={c.status}>{c.status}{c.error_pct != null ? ` (${c.error_pct}%, ±15% allowed)` : ""}</strong>
     {c.missed?.length > 0 && <span> · missed: {c.missed.join(", ")}</span>}
     <p className="muted small">Source: {c.source}</p>
   </section>;
