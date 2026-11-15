@@ -216,7 +216,7 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
       <summary>Every room, labeled: {scan.room_summary.total} rooms</summary>
       <p>{scan.room_summary.outer_wall} on the outer wall, {scan.room_summary.interior} interior, each measured from its own walls.
         Matterport gives a type to {scan.room_summary.typed} of them.</p>
-      {scan.room_summary.walked > 0 && <p>An AI model looked at a panorama in {scan.room_summary.walked} rooms and saw: {tally(scan.room_summary.seen) || "nothing it could name"}.
+      {scan.room_summary.walked > 0 && <p>An AI model looked at a panorama in {scan.room_summary.walked} {scan.room_summary.walked === 1 ? "room" : "rooms"} and saw: {tally(scan.room_summary.seen) || "nothing it could name"}.
         Seen, not measured, and not confirmed by a person.</p>}
       {scan.room_summary.walked > 0 && <p>Amenities it found on this floor: {tally(scan.room_summary.amenities) || "none"}.</p>}
       <ul className="scan-labels">{scan.rooms.map((l,i) => <li key={i}>
