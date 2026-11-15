@@ -102,6 +102,7 @@ def scans_for(building: dict, index: list[dict]) -> list[dict]:
                           "full_floor": looks_like_full_floor(row),
                           "panos": int(row.get("pano_count") or 0), "rooms": int(row.get("room_count") or 0),
                           "matched_by": "costar_id" if same_id else "distance",
+                          "unlinked": not row.get("costar_property_id"),      # filed under no building at all
                           "saved": (FLOORS_DIR / f"{row['sid']}.json").exists()})
     return sorted(found, key=lambda s: (not s["full_floor"], -s["panos"]))
 

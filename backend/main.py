@@ -54,12 +54,27 @@ def health():
     return {"status": "ok", "buildings": len(BUILDINGS), "data": "costar" if DATA_FILE.exists() else "sample"}
 
 
+def tour_scan(scans: list[dict]) -> dict | None:
+    """The scan a building's 3D tour opens, or None.
+
+    First a scan filed under the building's own CoStar id. Matterport's list leaves some office floors without
+    any building id, so next comes a full floor scanned at this address and filed under no building: it is
+    offered as matched by location and never measured. A scan filed under another building's id is never used:
+    it could be the tower next door.
+    """
+    own = next((s for s in scans if s["matched_by"] == "costar_id"), None)
+    return own or next((s for s in scans if s["matched_by"] == "distance" and s["unlinked"] and s["full_floor"]), None)
+
+
 @app.get("/api/buildings")
 def buildings_geojson():
     """Every building as a GeoJSON feature, with the numbers the map needs (color, height, slider)."""
     features = []
+    # A tour can only be opened with the SDK key, so without it the list promises none
+    index = matterport.load_index() if os.environ.get("MATTERPORT_SDK_KEY") else []
     for b in BUILDINGS.values():
         r = get_result(b["id"])
+        tour = None if b.get("synthetic") else tour_scan(matterport.scans_for(b, index))
         base = r["geometry"]["by_depth"]["36"]
         econ = r.get("econ") or {}
         features.append({
@@ -81,6 +96,7 @@ def buildings_geojson():
                 "residual_base": (econ.get("cases") or {}).get("base", {}).get("residual"),
                 "assessed_value": b.get("assessed_value"),
                 "gfa_sf": r["geometry"]["gfa_sf"],
+                "tour": tour["matched_by"] if tour else None,      # "costar_id", "distance" or None
             },
         })
     for b in MAP_ONLY:
@@ -177,12 +193,12 @@ def building_labels(building_id: str):
                 return {"model_id": scan["model_id"], "frame": "Matterport model coordinates, metres, z up",
                         "panos": [{"id": p["id"], "position": p["position"]} for p in model.get("panoLocations", []) if p.get("id") and p.get("position")], **out}
             reason = out["reason"]
-    # No measured floor, but the building may still have a tour to walk through. Only scans filed under this
-    # building's own CoStar id count: a scan that is merely nearby could be the tower next door.
-    tour = next((s for s in scans if s["matched_by"] == "costar_id"), None)
+    # No measured floor, but the building may still have a tour to walk through (see tour_scan for which scan).
+    tour = tour_scan(scans)
     return {"model_id": None, "labels": [], "reason": reason,
             "tour_model_id": tour["model_id"] if tour else None,
-            "tour_full_floor": bool(tour and tour["full_floor"])}
+            "tour_full_floor": bool(tour and tour["full_floor"]),
+            "tour_matched_by": tour["matched_by"] if tour else None}
 
 
 @app.get("/api/config")

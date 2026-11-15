@@ -48,7 +48,7 @@ export default function BuildingList({ features, selectedId, hoveredId, onSelect
             <span className="dot" aria-hidden="true" />
             <span className="row-main">
               <strong>{p.name}</strong>
-              <small>{status(p)}</small>
+              <small>{status(p)}{p.tour === "distance" ? " · 3D tour nearby" : p.tour ? " · 3D tour" : ""}</small>
             </span>
             <span className="row-homes">{p.homes == null ? "–" : p.homes.toLocaleString()}<small>homes</small></span>
           </button>
