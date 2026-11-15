@@ -68,8 +68,9 @@ small { font-size: inherit; }
 .window-mark rect { fill: #46567a; }
 .window-mark rect.on { fill: var(--lamp); }
 .topnav { display: flex; gap: 2px; }
-.topnav button { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--text-3); transition: color 160ms var(--ease), background 160ms var(--ease); }
-.topnav button:hover { color: var(--text); }
+.topnav button, .topnav a { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--text-3); transition: color 160ms var(--ease), background 160ms var(--ease); }
+.topnav button:hover, .topnav a:hover { color: var(--text); }
+.topnav a { text-decoration: none; }
 .topnav button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); }
 .topnav .count { padding: 1px 7px; border-radius: 999px; background: var(--pass-wash); color: var(--pass); font-size: 11.5px; }
 
@@ -438,9 +439,8 @@ input[type="checkbox"] { accent-color: var(--lamp); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
 /* Compare: two buildings side by side (ComparePanel) */
-.catalog-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.catalog-title h2 { flex: 1; }
-.catalog-title .secondary { padding: 6px 13px; font-size: 12.5px; white-space: nowrap; }
+.catalog-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.catalog-tools .text-button { padding: 5px 0; font-size: 12.5px; white-space: nowrap; }
 .compare-pair, .compare-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
 .compare-pair { margin-top: 20px; }
 .compare-picker { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
@@ -487,4 +487,3 @@ input[type="checkbox"] { accent-color: var(--lamp); }
   transition: color 200ms var(--ease), border-color 200ms var(--ease); }
 .incentive-marks span[data-met="true"] { border-color: var(--lamp); color: var(--lamp); }
 @keyframes mark-in { from { opacity: 0; } }
-.map-welcome {position:absolute;left:16px;top:76px;padding:8px 14px;background:var(--glass);color:var(--text);border-radius:16px;pointer-events:none;}

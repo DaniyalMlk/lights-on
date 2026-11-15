@@ -28,13 +28,13 @@ export default function BuildingList({ features, selectedId, hoveredId, onSelect
   const count = features?.filter(f => !f.properties.map_only).length;
   return <section className="catalog" aria-label="Building list">
     <header className="catalog-head">
-      <div className="catalog-title">
-        <h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
-        {count >= 2 && <button className="secondary" onClick={onCompare}>Compare two</button>}
-      </div>
-      <div className="sort" role="group" aria-label="Sort towers">
-        {Object.entries(SORTS).map(([key, { name }]) =>
-          <button key={key} aria-pressed={sort === key} onClick={() => setSort(key)}>{name}</button>)}
+      <h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
+      <div className="catalog-tools">
+        <div className="sort" role="group" aria-label="Sort towers">
+          {Object.entries(SORTS).map(([key, { name }]) =>
+            <button key={key} aria-pressed={sort === key} onClick={() => setSort(key)}>{name}</button>)}
+        </div>
+        {count >= 2 && <button className="text-button" onClick={onCompare}>Compare</button>}
       </div>
     </header>
     {error ? <p className="empty">Building data unavailable. Is the API running?</p>

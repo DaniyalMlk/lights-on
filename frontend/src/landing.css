@@ -64,3 +64,8 @@ footer.lp-section .lp-desc {max-width:min(100%,40ch);margin:0 auto 28px;text-wra
 .hero-live-map {transition:opacity 380ms var(--ease)}
 @media(max-width:740px){.lp-hero .lp-intro {box-sizing:border-box}.lp-hero .lp-intro h1 {font-size:clamp(36px,8.5vw,50px);max-width:15ch}.hero-map {height:clamp(265px,40svh,365px)}}
 .hero-credit {position:absolute;right:8px;bottom:4px;font-size:10px;color:#c2cddd;background:var(--glass);padding:1px 6px;border-radius:4px}
+.hero-note {position:absolute;left:8px;bottom:4px;font-size:10px;color:var(--lamp);background:var(--glass);padding:1px 6px;border-radius:4px}
+.lp-study .tag {margin:0 0 10px}
+.lp-study .fine {margin:-14px 0 24px}
+.lp-check {margin-top:36px}
+.lp-check a {color:var(--lamp)!important;text-decoration:underline!important;text-underline-offset:3px}

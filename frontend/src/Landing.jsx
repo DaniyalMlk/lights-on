@@ -1,90 +1,187 @@
-import {lazy,Suspense,useEffect,useRef,useState} from "react";
-import CityDrawing from "./CityDrawing";
-import {money} from "./format";
-import {breakEven as requiredIncentive,firstStep as sliderThreshold} from "./incentive";
-const perFoot=n=>`$${n.toLocaleString("en-US",{maximumFractionDigits:2})}/SF`;
-const supportStatus=(required,current)=>required===null?"Unavailable":current>=required?"Meets assessed value":"Below assessed value";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import CityDrawing from "./CityDrawing.jsx";
+import { INCENTIVE_MAX, breakEven, firstStep, stepWords } from "./incentive.js";
+import { screenBuildings } from "./screenBuildings.js";
 import "./landing.css";
 
-import {screenBuildings} from "./screenBuildings";
+// The introduction at /about: what Lights On does, shown on the same data as the map.
+// Like the map, it shows only our own results: no rents, vacancy, prices or dollar totals of a building.
+
 const PreviewMap = lazy(() => import("./CityMap.jsx"));
-const mapUrl="/?view=map";
-const buildingUrl=id=>mapUrl+"&demo="+encodeURIComponent(id);
-const plate=id=>"/api/buildings/"+encodeURIComponent(id)+"/plate.svg?depth=36";
-function Link({href,children,quiet=false}){
-  return <a className={quiet?"lp-link":"lp-button"} href={href}>{children} <span aria-hidden="true">↗</span></a>;
+const PREVIEW_INCENTIVE = 165;   // $/SF, hypothetical: the map at the top shows which towers light up at this setting
+const VACANCY_GATE = 35;         // percent, the map's own starting filter
+const buildingUrl = (id) => `/?demo=${encodeURIComponent(id)}`;
+const plateUrl = (id) => `/api/buildings/${encodeURIComponent(id)}/plate.svg?depth=36`;
+const paysFrom = (p) => { const step = firstStep(breakEven(p)); return step == null ? "No price to compare" : stepWords(step); };
+
+const STEPS = [
+  ["Find a building", "Pick an office building on the downtown Houston map. A vacancy filter decides which ones are in play."],
+  ["See the homes that fit", "Bedrooms need windows. We lay out the apartments that fit within 30, 36 and 42 ft of one."],
+  ["Compare two", "Put two buildings side by side: homes, daylight, and the hypothetical incentive at which each starts to pay for itself."],
+];
+const ASSUMPTIONS = [
+  ["Building data", "CoStar records supply the building and market inputs. The floor plate comes from a Matterport scan of a full floor where we have one, else a Vexcel outline that matches the typical floor, else a square stand-in that the app labels as one."],
+  ["Floor depth", "The 30, 36 and 42 ft layouts test how much of the floor can hold apartments near a window. Home counts are indicative."],
+  ["Does it pay", "Value as housing minus conversion cost and developer margin gives an indicative residual, not an offer price. The incentive is hypothetical: a building may be eligible, verify with the program."],
+];
+
+function Button({ href, children }) {
+  return <a className="lp-button" href={href}>{children} <span aria-hidden="true">↗</span></a>;
 }
-export default function Landing(){
-  const [pair,setPair]=useState([]),[detail,setDetail]=useState(null);
-  const [previewData,setPreviewData]=useState(null);
-  const [previewActive, setPreviewActive] = useState(true);
+
+export default function Landing() {
+  const [preview, setPreview] = useState(null);       // every building with its verdict at the preview setting
+  const [pair, setPair] = useState([]);               // the example building and one to compare it with
+  const [detail, setDetail] = useState(null);         // the example building's full analysis
+  const [mapOn, setMapOn] = useState(true);
+  const page = useRef(null);
+
   useEffect(() => {
-    const hide = () => setPreviewActive(false);
-    const show = () => setPreviewActive(true);
+    const controller = new AbortController();
+    const get = async (url) => {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error();
+      return response.json();
+    };
+    (async () => {
+      const collection = await get("/api/buildings");
+      setPreview(screenBuildings(collection, PREVIEW_INCENTIVE, VACANCY_GATE));
+      const towers = collection.features.map(f => f.properties).filter(p => !p.map_only);
+      const priced = towers.filter(p => breakEven(p) !== null).sort((a, b) => breakEven(a) - breakEven(b));
+      // The example is 800 Bell when the data has it (its floor is scanned), else the building closest to paying
+      const first = priced.find(p => p.name === "800 Bell") ?? priced[0] ?? towers[0];
+      if (!first) return;
+      // Next to it, one that needs a higher incentive, so the comparison shows a difference
+      const second = priced.find(p => p.id !== first.id && firstStep(breakEven(p)) > firstStep(breakEven(first)))
+        ?? towers.find(p => p.id !== first.id);
+      setPair([first, second].filter(Boolean));
+      setDetail(await get(`/api/buildings/${encodeURIComponent(first.id)}`));
+    })().catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  // Sections rise into place the first time they scroll into view
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) { entry.target.classList.add("shown"); observer.unobserve(entry.target); }
+    }), { threshold: 0.13 });
+    page.current.querySelectorAll(".lp-step, .lp-study").forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
+  // A page kept in the browser's back cache should not hold a live map
+  useEffect(() => {
+    const hide = () => setMapOn(false), show = () => setMapOn(true);
     window.addEventListener("pagehide", hide);
     window.addEventListener("pageshow", show);
-    return () => {
-      window.removeEventListener("pagehide", hide);
-      window.removeEventListener("pageshow", show);
-    };
+    return () => { window.removeEventListener("pagehide", hide); window.removeEventListener("pageshow", show); };
   }, []);
-  const page=useRef(null);
-  useEffect(()=>{
-    const controller=new AbortController();
-    const get=async url=>{const r=await fetch(url,{signal:controller.signal});if(!r.ok)throw Error();return r.json();};
-    (async()=>{
-      const collection=await get("/api/buildings");
-      setPreviewData(screenBuildings(collection, 165, 35));
-      const towers=collection.features.map(f=>f.properties).filter(p=>!p.map_only);
-      const valid=towers.filter(p=>requiredIncentive(p)!==null).sort((a,b)=>requiredIncentive(a)-requiredIncentive(b));
-      const first=valid.find(p=>p.name==="800 Bell")??valid[0]??towers[0];
-      if(!first)return;
-      const second=valid.find(p=>requiredIncentive(p)>sliderThreshold(requiredIncentive(first)) && p.id!==first.id)??towers.find(p=>p.id!==first.id);
-      setPair([first,second].filter(Boolean));setDetail(await get("/api/buildings/"+encodeURIComponent(first.id)));
-    })().catch(()=>{});
-    const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("shown");observer.unobserve(e.target);}}),{threshold:.13});
-    page.current.querySelectorAll(".lp-step, .lp-study").forEach(el=>observer.observe(el));
-    return ()=>{observer.disconnect();controller.abort();};
-  },[]);
-  const [a,b]=pair, example=a?buildingUrl(a.id):"#study";
-  const current=a?sliderThreshold(requiredIncentive(a)):null;
-  const amount=n=>n==null?"Unavailable":perFoot(n);
+
+  const [a, b] = pair;
+  const setting = a ? firstStep(breakEven(a)) : null;      // the first step at which the example pays
+  const daylight = detail?.geometry?.by_depth?.["36"]?.daylight_share;
+  const facts = a ? [
+    ["Potential homes", a.homes?.toLocaleString() ?? "–"],
+    ["Near a window", daylight == null ? "…" : `${Math.round(daylight * 100)}%`],
+    ["Pays for itself from", paysFrom(a)],
+  ] : [];
+  const visuals = [
+    <CityDrawing />,
+    a && <img src={plateUrl(a.id)} alt="Indicative apartment layout" />,
+    <div className="lp-bars">{pair.map(p => {
+      const step = firstStep(breakEven(p));
+      return <div key={p.id}>{p.name}<b>{paysFrom(p)}</b>
+        <i style={{ width: `${step == null ? 0 : Math.min(100, 100 * step / INCENTIVE_MAX)}%` }} /></div>;
+    })}</div>,
+  ];
+
   return <main className="landing" ref={page}>
-    <header className="lp-nav"><a className="brand" href="/"><img src="/favicon.svg" width="23" alt=""/>Lights On</a></header>
+    <header className="lp-nav"><a className="brand" href="/"><img src="/favicon.svg" width="23" alt="" />Lights On</a></header>
+
     <section className="lp-hero">
-      <div className="lp-intro"><p className="lp-kicker">Office-to-housing atlas</p>
-        <h1>Find the next homes in <em>your city.</em></h1>
-        <p>Explore vacant offices, estimate housing potential, and see what it takes to make conversion financially viable.</p>
-        <Link href={mapUrl}>Explore Houston</Link>
+      <div className="lp-intro">
+        <p className="lp-kicker">Office-to-housing screening</p>
+        <h1>Find the offices that can become <em>homes.</em></h1>
+        <p>Lights On screens downtown Houston's office buildings: how many homes fit near the windows, and what it would
+          take for a conversion to pay for itself. It tells a lender or owner which buildings deserve a professional
+          study, not what to bid.</p>
+        <Button href="/">Open the map</Button>
       </div>
-      <div className="hero-map" role="img" aria-label="Downtown Houston office conversions at $165 per square foot of support and a 35% vacancy threshold">
+      <div className="hero-map" role="img"
+           aria-label={`Downtown Houston: office buildings that would pay for themselves at a hypothetical $${PREVIEW_INCENTIVE} per square foot incentive are lit`}>
         <div aria-hidden="true" className="hero-map-scene"><Suspense fallback={null}>
-          {previewActive && previewData && <PreviewMap preview data={previewData}/>}
+          {mapOn && preview && <PreviewMap preview data={preview} />}
         </Suspense></div>
+        <small className="hero-note">Lit: pays for itself at a hypothetical ${PREVIEW_INCENTIVE}/SF incentive</small>
         <small className="hero-credit">OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors</small>
       </div>
     </section>
-    <section id="method" className="lp-section"><p className="lp-kicker">How Lights On works</p><h2>From empty offices to potential homes.</h2><p className="lp-desc">For city teams and developers, vacancy is only the starting point. Screen the floor plate and the finances together to decide which building deserves a closer study.</p>
-    <div className="lp-steps">{["Find a building","Explore housing potential","Compare financial feasibility"].map((title,i)=><article key={title} className="lp-step"><div className="lp-mini">{i===0?<CityDrawing/>:i===1&&a?<img src={plate(a.id)} alt="Indicative apartment layout"/>:i===2?<div className="lp-bars">{pair.map(p=><div key={p.id}>{p.name}<b>{amount(requiredIncentive(p))}</b><i style={{width:Math.min(100,(requiredIncentive(p)??0)/2.5)+"%"}}/></div>)}</div>:null}</div><small>0{i+1}</small><h3>{title}</h3><p>{["Choose an office on the Houston map and check its vacancy.","Trace the apartments that fit near the windows at three unit depths.","Compare purchase capacity and support needs under common assumptions."][i]}</p></article>)}</div></section>
+
+    <section id="method" className="lp-section">
+      <p className="lp-kicker">How Lights On works</p>
+      <h2>From empty offices to potential homes.</h2>
+      <p className="lp-desc">For a lender or owner, vacancy is only the starting point. Lights On screens the floor plate
+        and the finances together, to decide which building deserves a closer study.</p>
+      <div className="lp-steps">{STEPS.map(([title, text], i) =>
+        <article key={title} className="lp-step">
+          <div className="lp-mini">{visuals[i]}</div>
+          <small>0{i + 1}</small>
+          <h3>{title}</h3>
+          <p>{text}</p>
+        </article>)}</div>
+    </section>
+
     <section className="lp-section" id="study">
       <div className="lp-study">
-        <figure>{a&&<img src={plate(a.id)} alt="Estimated apartment layout at 36 ft"/>}<figcaption>Typical floor · 36 ft unit depth</figcaption></figure>
+        <figure>{a && <img src={plateUrl(a.id)} alt="Indicative apartment layout at 36 ft" />}
+          <figcaption>Typical floor · indicative layout at 36 ft</figcaption></figure>
         <div>
-          <p className="lp-kicker">Building Study · Houston</p>
-          <h2>{a?.name??"Building overview"}</h2><p className="lp-desc">{a?.address} {detail?.building?.synthetic?"· Sample building":""}</p><dl>{[["Potential homes",a?.homes?.toLocaleString()],["Conversion cost",money(detail?.econ?.cases?.base?.cost)],["Required incentive",amount(requiredIncentive(a))]].map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v??"Unavailable"}</dd></div>)}</dl>{a&&<Link href={example}>Explore this building</Link>}
+          <p className="lp-kicker">One building</p>
+          <h2>{a?.name ?? "Building overview"}</h2>
+          {detail?.building?.synthetic && <p className="tag">Sample data, not a real building</p>}
+          <p className="lp-desc">{detail?.building?.address}</p>
+          <dl>{facts.map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}</dl>
+          <p className="fine">The incentive is hypothetical, in the base case.</p>
+          {a && <Button href={buildingUrl(a.id)}>Open this building</Button>}
         </div>
       </div>
     </section>
-    <section className="lp-section"><p className="lp-kicker">Compare buildings</p><h2>Where could support make the difference?</h2>{b&&current!==null?<><p className="lp-desc">At {perFoot(current)} of hypothetical support, here’s how two offices compare in the base case.</p><div className="lp-pair">{pair.map(p=><article key={p.id}><h3>{p.name}</h3><p>Required incentive</p><strong>{amount(requiredIncentive(p))}</strong><small data-lit={current>=requiredIncentive(p)&&requiredIncentive(p)!==null}>{supportStatus(requiredIncentive(p),current)}</small></article>)}</div></>:<p>Comparison data unavailable.</p>}</section>
-    <section className="lp-section"><p className="lp-kicker">Data & Assumptions</p><h2>What goes into a study?</h2>
-      <div className="lp-assumptions">{[["Building data","CoStar records supply building and market inputs when available. Footprints can be estimated, and matched floor scans refine the geometry where available."],["Floor depth","The 30, 36 and 42 ft layouts test how much floor area can accommodate apartments near the facade. Home counts are indicative."],["Financial feasibility","The base case uses the 36 ft layout. Housing value minus conversion cost and developer margin gives purchase capacity. Required incentive closes the gap to the reference price per gross square foot."]].map(([title,description], index) => (
-        <article key={title}>
-          <span className="lp-card-number" aria-hidden="true">0{index + 1}</span>
-          <h3>{title}</h3>
-          <p>{description}</p>
-        </article>
-      ))}</div>
+
+    <section className="lp-section">
+      <p className="lp-kicker">Compare two buildings</p>
+      <h2>Which one deserves the study?</h2>
+      {b && setting !== null ? <>
+        <p className="lp-desc">At a hypothetical ${setting}/SF incentive, in the base case:</p>
+        <div className="lp-pair">{pair.map(p => {
+          const step = firstStep(breakEven(p));
+          const pays = step !== null && step <= setting;
+          return <article key={p.id}>
+            <h3>{p.name}</h3>
+            <p>Pays for itself from</p>
+            <strong>{paysFrom(p)}</strong>
+            <small data-lit={pays}>{pays ? "Pays for itself at this setting" : "Not yet at this setting"}</small>
+          </article>;
+        })}</div>
+      </> : <p className="lp-desc">Comparison unavailable.</p>}
     </section>
-    <footer className="lp-section"><h2>Explore Houston’s conversion potential.</h2><p className="lp-desc">Choose an office on the map to see how many homes could fit and what support conversion would take.</p><Link href={mapUrl}>Open the map</Link></footer>
+
+    <section className="lp-section">
+      <p className="lp-kicker">Data and assumptions</p>
+      <h2>What goes into a screening?</h2>
+      <div className="lp-assumptions">{ASSUMPTIONS.map(([title, text], i) =>
+        <article key={title}>
+          <span className="lp-card-number" aria-hidden="true">0{i + 1}</span>
+          <h3>{title}</h3>
+          <p>{text}</p>
+        </article>)}</div>
+      <p className="lp-desc lp-check">We wrote the expected answers down before the official run and tested on two Houston
+        projects. The results, including the miss, are on the <a href="/?tab=Validation">Validation tab</a>.</p>
+    </section>
+
+    <footer className="lp-section">
+      <h2>Which empty offices deserve a closer look?</h2>
+      <p className="lp-desc">Choose a building on the map to see how many homes could fit and what it would take to pay for itself.</p>
+      <Button href="/">Open the map</Button>
+    </footer>
   </main>;
 }

@@ -1,11 +1,11 @@
 import { createRoot } from "react-dom/client";
+import { lazy, Suspense } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
-import { lazy, Suspense } from "react";
-const App = lazy(() => import("./App.jsx"));
+import App from "./App.jsx";
 
-import Landing from "./Landing.jsx";
+// The map is the app and stays at "/". The introduction lives at /about (or /?about), loaded only when asked for.
+const Landing = lazy(() => import("./Landing.jsx"));
+const about = location.pathname === "/about" || new URLSearchParams(location.search).has("about");
 
-const query = new URLSearchParams(location.search);
-const explorer = location.pathname === "/map" || ["view","tab","demo"].some(key => query.has(key));
-createRoot(document.getElementById("root")).render(explorer ? <Suspense fallback={null}><App /></Suspense> : <Landing />);
+createRoot(document.getElementById("root")).render(about ? <Suspense fallback={null}><Landing /></Suspense> : <App />);

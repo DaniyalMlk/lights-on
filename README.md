@@ -72,7 +72,7 @@ backend/
     verifier.py      checks numbers in a draft against saved outputs
     geo.py           lon/lat <-> feet
 scripts/             check_keys, build_dataset, cache_all, run_validation, record_traces
-frontend/            React + MapLibre 3D map; Building, Agent, Compare and Validation tabs
+frontend/            React + MapLibre 3D map; Building, Agent, Compare and Validation tabs; an introduction at /about
 tests/               pytest
 docs/                spec, data notes, pre-registered tests
 ```

@@ -23,7 +23,6 @@ function WindowMark() {
 }
 
 export default function App() {
-  const [showIntro, setShowIntro] = useState(() => new URLSearchParams(location.search).get("view") === "map" && !sessionStorage.getItem("map-intro-seen"));
   const [buildings, setBuildings] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
@@ -68,7 +67,6 @@ export default function App() {
   }
   // One tower is something you turn around; the whole city is something you move across
   function selectBuilding(id) {
-    if (id) { setShowIntro(false); sessionStorage.setItem("map-intro-seen", "1"); }
     setSelectedId(id);
     if (id !== selectedId) { setPlate(null); setMarks([]); setFocus(null); setExplored(false); }
     setMode(id ? "turn" : "move");
@@ -180,7 +178,6 @@ export default function App() {
                              onSelect={comparing ? choose : selectBuilding} onHover={setHoveredId} onGrab={() => setExplored(true)}
                              onMode={(next) => { setMode(next); setExplored(false); }} onMark={pickLabel} />}
 
-        {showIntro && view === "list" && <p className="map-welcome">Select a building to explore its housing potential.</p>}
         <header className="island">
           <a className="brand" href="/" aria-label="Lights On, start over"><WindowMark />Lights On</a>
           <nav className="topnav" aria-label="Sections">
@@ -188,6 +185,7 @@ export default function App() {
             <button aria-pressed={view === "validation"} onClick={openValidation}>
               Validation{proof && <span className="count">{passed} of {scored} passed</span>}
             </button>
+            <a href="/about">About</a>
           </nav>
         </header>
 

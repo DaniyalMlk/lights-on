@@ -390,7 +390,8 @@ export default function CityMap({ data, preview = false, pair, selectedId, hover
   useEffect(() => {
     if (!ready) return;
     paint();
-    map.current.setFilter("compare-cap", ["in", ["get", "id"], ["literal", (pair ?? []).filter(Boolean)]]);
+    if (map.current?.getLayer("compare-cap"))
+      map.current.setFilter("compare-cap", ["in", ["get", "id"], ["literal", (pair ?? []).filter(Boolean)]]);
     for (const [id, pin] of pins.current) {
       const active = id === selectedId || id === hoveredId;
       pin.dataset.active = String(active);
