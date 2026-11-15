@@ -383,7 +383,7 @@ export default function CityMap({ data, pair, selectedId, hoveredId, rightInset,
   useEffect(() => {
     if (!ready) return;
     paint();
-    map.current.setFilter("compare-outline", ["in", ["get", "id"], ["literal", (pair ?? []).filter(Boolean)]]);
+    map.current.setFilter("compare-cap", ["in", ["get", "id"], ["literal", (pair ?? []).filter(Boolean)]]);
     for (const [id, pin] of pins.current) {
       const active = id === selectedId || id === hoveredId;
       pin.dataset.active = String(active);
@@ -598,9 +598,19 @@ function addLayers(map, latest, pins) {
     },
   });
 
-  map.addLayer({ id: "compare-outline", type: "line", source: "buildings",
-    filter: ["==", ["get", "id"], ""],
-    paint: { "line-color": "#f4bf5f", "line-width": 3 } });
+  // The two towers being compared get a lamp-colored cap on the roof, so they can be told apart from above
+  map.addLayer({
+    id: "compare-cap", type: "fill-extrusion", source: "buildings",
+    filter: ["in", ["get", "id"], ["literal", []]],
+    paint: {
+      "fill-extrusion-base": ["+", ["get", "h"], ROOF_M],
+      "fill-extrusion-height": ["+", ["get", "h"], ROOF_M + 4],
+      "fill-extrusion-color": "#f4bf5f",
+      "fill-extrusion-opacity": 1,
+      "fill-extrusion-vertical-gradient": false,
+    },
+  });
+
   map.addSource("plan", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({
     id: "plan-3d", type: "fill-extrusion", source: "plan",

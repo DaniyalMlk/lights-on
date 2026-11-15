@@ -28,8 +28,9 @@ export default function BuildingList({ features, selectedId, hoveredId, onSelect
   const count = features?.filter(f => !f.properties.map_only).length;
   return <section className="catalog" aria-label="Building list">
     <header className="catalog-head">
-      <div className="catalog-title"><h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
-        {count >= 2 && <button className="secondary" onClick={onCompare}>Compare</button>}
+      <div className="catalog-title">
+        <h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
+        {count >= 2 && <button className="secondary" onClick={onCompare}>Compare two</button>}
       </div>
       <div className="sort" role="group" aria-label="Sort towers">
         {Object.entries(SORTS).map(([key, { name }]) =>

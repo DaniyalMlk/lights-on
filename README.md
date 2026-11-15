@@ -15,6 +15,8 @@ Built at HackPrinceton Fall 2026 for the Sustainability track and the CoStar "In
 5. **Compare**: an illustrative embodied-carbon range for converting vs building new.
 6. **Write and check**: a LangChain deep agent plans the job, hands it to sub-agents (screener, analyst, writer, verifier) and drafts the memo. The verifier checks every number against the saved tool outputs.
 
+In the app, two buildings can be put side by side (homes, daylight, where each starts to pay for itself) to decide which one deserves the study. Marks under the incentive slider show the step at which the open building lights up.
+
 More detail: [docs/how-it-works.md](docs/how-it-works.md). Plan and scope: [docs/spec.md](docs/spec.md).
 
 ## Run it
@@ -70,7 +72,7 @@ backend/
     verifier.py      checks numbers in a draft against saved outputs
     geo.py           lon/lat <-> feet
 scripts/             check_keys, build_dataset, cache_all, run_validation, record_traces
-frontend/            React + MapLibre 3D map; Building, Agent and Proof tabs
+frontend/            React + MapLibre 3D map; Building, Agent, Compare and Validation tabs
 tests/               pytest
 docs/                spec, data notes, pre-registered tests
 ```

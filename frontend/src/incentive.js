@@ -1,26 +1,22 @@
-export const incentiveMax = 250;
-export const incentiveStep = 5;
-export const perFoot = n => `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}/SF`;
+// Where on the incentive slider a building starts to pay for itself.
+// The residuals and the reference price come from the tools; this file only finds the slider step and words it.
 
-// The map requires both case results. The downside case refines the verdict
-// once the base case can support the reference price.
-export function requiredIncentive(p) {
-  if (!p || ![p.residual_base, p.residual_worst, p.assessed_value, p.gfa_sf].every(Number.isFinite)
-      || p.gfa_sf <= 0 || p.assessed_value <= 0) return null;
+export const INCENTIVE_MAX = 250;   // $/SF, the right end of the slider
+export const INCENTIVE_STEP = 5;
+
+// $/SF of hypothetical incentive at which the base case covers the reference price. null = no price to compare with
+export function breakEven(p) {
+  if (!p || p.residual_base == null || p.residual_worst == null || !p.assessed_value || !p.gfa_sf) return null;
   return Math.max(0, (p.assessed_value - p.residual_base) / p.gfa_sf);
 }
 
-export function sliderThreshold(required) {
-  return required === null ? null : Math.ceil(required / incentiveStep) * incentiveStep;
+// The first slider step at or above it: the position where the tower lights up
+export function firstStep(need) {
+  return need == null ? null : Math.ceil(need / INCENTIVE_STEP) * INCENTIVE_STEP;
 }
 
-export function supportStatus(required, current) {
-  if (required === null) return "Unavailable";
-  return current >= required ? "Meets assessed value" : "Below assessed value";
-}
-
-export function thresholdNote(required) {
-  if (required === 0) return "No incentive required";
-  if (required > incentiveMax) return "Above slider range";
-  return null;
+export function stepWords(step) {
+  if (step === 0) return "No incentive needed";
+  if (step > INCENTIVE_MAX) return `More than $${INCENTIVE_MAX}/SF`;
+  return `$${step}/SF`;
 }
