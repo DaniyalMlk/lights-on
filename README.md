@@ -24,10 +24,12 @@ More detail: [docs/how-it-works.md](docs/how-it-works.md). Plan and scope: [docs
 ```bash
 # Backend
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 cp .env.example .env            # add keys
-uvicorn backend.main:app --reload
-pytest                          # tests
+python -m uvicorn backend.main:app --reload
+python -m pytest                # tests
+
+# The python -m forms make sure the venv's own tools run, even when another Python (Anaconda) is first on the PATH
 
 # Frontend (second terminal)
 cd frontend && npm install && npm run dev    # http://localhost:5173
