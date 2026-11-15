@@ -31,7 +31,7 @@ pytest                          # tests
 cd frontend && npm install && npm run dev    # http://localhost:5173
 ```
 
-Without CoStar data the app runs on four synthetic sample buildings (`backend/sample_buildings.json`). They are not real properties. Real data goes in `data/buildings.json`, which is git-ignored.
+Without CoStar data the app runs on four synthetic sample buildings (`backend/sample_buildings.json`). They are not real properties. A fresh clone also ships one recorded agent run (Sample A, Agent tab) and the four validation cases of the official run (Validation tab), in `backend/samples/`. Real data goes in `data/buildings.json`, which is git-ignored.
 
 ```bash
 # Real data. Sponsor keys go in .env; CoStar's column names go in data/field_map.json (git-ignored)

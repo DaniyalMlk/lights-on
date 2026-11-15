@@ -1,0 +1,23 @@
+{
+ "snapshot": true,
+ "ran_at": "2026-11-14T07:23:29+00:00",
+ "official_ran_at": "2026-11-14T07:23:29+00:00",
+ "params_version": "6ba9f5da",
+ "cases": [
+  {"case": "1801 Smith (Elev8)", "role": "development check, not a holdout", "source": "HAR listing: 372 units",
+   "predicted": 360, "truth": 372, "floors_used": 20, "inputs": "our data", "plate_source": "footprint",
+   "deep_plate": false, "error_pct": -3.2, "missed": [], "status": "pass"},
+  {"case": "One City Centre", "role": "planned program, not built yet; inputs: AECOM, public numbers, not CoStar",
+   "source": "TDLR TABS2025025699: 460 apartments on levels 7-29", "predicted": 368, "truth": 460, "floors_used": 23,
+   "inputs": "AECOM, public numbers, not CoStar (AECOM 2023 study p. 81: 21,000 SF typical floor, 90 ft minimum depth)",
+   "plate_source": "footprint", "deep_plate": false, "error_pct": -20.0, "missed": ["home count", "deep-plate branch"],
+   "status": "miss"},
+  {"case": "708 Main", "role": "AECOM 2023 deep dive; dropped: not in our data",
+   "source": "AECOM Downtown Houston study (direction only)", "status": "no data", "predicted": null, "truth": null},
+  {"case": "1415 Louisiana", "role": "AECOM 2023 deep dive; described, not scored",
+   "source": "AECOM Downtown Houston study (direction only)", "predicted": 336, "truth": null, "floors_used": 42,
+   "inputs": "our data", "plate_source": "footprint", "deep_plate": false, "status": "compare by hand",
+   "our_verdict": "negative_residual"}
+ ],
+ "input_sensitivity": []
+}

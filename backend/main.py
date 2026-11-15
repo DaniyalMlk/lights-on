@@ -120,15 +120,28 @@ def building_svg(building_id: str, depth: int = 36):
 @app.get("/api/recordings")
 def recordings() -> list[str]:
     """Ids of the buildings that have a recorded agent run, so a building without one can point to them."""
-    return [i for i in BUILDINGS if (WORK_DIR / i / "trace.json").exists()]
+    return [i for i in BUILDINGS if _trace_path(i)]
+
+
+# What a fresh clone has instead of work/: one agent run recorded on a sample building, and the four validation
+# cases of the official run. Both hold only made-up or public figures, so they can live in the repo.
+SAMPLES_DIR = Path(__file__).resolve().parent / "samples"
+
+
+def _trace_path(building_id: str) -> Path | None:
+    """The recorded run for a building: this machine's own, else the one shipped with the repo."""
+    for path in (WORK_DIR / building_id / "trace.json", SAMPLES_DIR / "traces" / f"{building_id}.json"):
+        if path.exists():
+            return path
+    return None
 
 
 @app.get("/api/buildings/{building_id}/recording")
 def recording(building_id: str):
     if building_id not in BUILDINGS:
         raise HTTPException(404, "Unknown building")
-    path = WORK_DIR / building_id / "trace.json"
-    if not path.exists():
+    path = _trace_path(building_id)
+    if not path:
         raise HTTPException(404, "No recorded run for this building")
     trace = json.loads(path.read_text())
     trace["events"] = redact(trace.get("events", []), _protect(building_id))
@@ -182,7 +195,8 @@ def proof():
     """Latest validation run (python -m scripts.run_validation)."""
     path = WORK_DIR / "proof.json"
     if not path.exists():
-        raise HTTPException(404, "No validation run yet: python -m scripts.run_validation")
+        # No run on this machine: show the saved copy of the official run's cases (it says so on the page)
+        return json.loads((SAMPLES_DIR / "proof.json").read_text())
     result = json.loads(path.read_text())
     # proof.json is the latest run. The official run is the first line of the history, so the page can say both.
     history = WORK_DIR / "proof_history.jsonl"

@@ -59,7 +59,10 @@ export default function ProofPanel({ proof }) {
     </header>
     <ol className="cases">{proof.cases.map((c, i) => <CaseRow key={c.case} c={c} index={i} />)}</ol>
 
-    <section className="block">
+    {proof.snapshot && <p className="fine">This is the saved copy of the official run's four cases, shipped with the
+      repo. The comparison across all 18 buildings needs the licensed data, so it is not shown here.</p>}
+
+    {!proof.snapshot && <section className="block">
       <h3>Does the real plate change the answer?</h3>
       <p className="fine">Homes at 36 ft on a square of CoStar's typical floor, against the best plate we have: a
         scanned full floor, or a Vexcel outline that matches the typical floor. This shows sensitivity to the data,
@@ -71,7 +74,7 @@ export default function ProofPanel({ proof }) {
           <td>{r.homes_with_footprint.toLocaleString()} <small>#{r.rank_with_footprint}</small></td></tr>)}</tbody>
       </table> : <p className="muted">No building has a scanned floor or a matching Vexcel outline yet.</p>}
       {squares > 0 && <p className="fine">{squares} other buildings use the square stand-in, so there is nothing to compare.
-        Numbers after # are the rank among all {proof.input_sensitivity.length} towers.</p>}
-    </section>
+        Numbers after # are the rank among all {proof.input_sensitivity.length} buildings.</p>}
+    </section>}
   </article>;
 }

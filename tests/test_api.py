@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from backend import main
 from backend.main import app
 
 client = TestClient(app)
@@ -64,3 +65,16 @@ def test_depth_specific_plates(monkeypatch, tmp_path):
     assert plates[0].content != plates[1].content
     assert client.get(path).content == plates[1].content
     assert client.get(path, params={"depth": 31}).status_code == 422
+
+
+def test_a_fresh_clone_still_has_a_recorded_run_and_the_validation_cases(tmp_path, monkeypatch):
+    # No work/ folder at all, as on a judge's machine: the copies shipped in backend/samples answer instead
+    monkeypatch.setattr(main, "WORK_DIR", tmp_path)
+    monkeypatch.setattr(main, "BUILDINGS", {"SAMPLE-1": {"id": "SAMPLE-1", "name": "Sample A", "synthetic": True}})
+    api = TestClient(main.app)
+    assert api.get("/api/recordings").json() == ["SAMPLE-1"]
+    run = api.get("/api/buildings/SAMPLE-1/recording").json()
+    assert run["complete"] is True and len(run["events"]) > 10
+    proof = api.get("/api/proof").json()
+    assert proof["snapshot"] is True
+    assert [case["status"] for case in proof["cases"]] == ["pass", "miss", "no data", "compare by hand"]
