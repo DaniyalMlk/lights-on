@@ -14,7 +14,13 @@ const SORTS = {
   cases: { name: "Test cases", order: (a, b) => caseRank(a) - caseRank(b) },
   homes: { name: "Most homes", order: (a, b) => (b.properties.homes ?? -1) - (a.properties.homes ?? -1) },
   gap: { name: "Closest to paying", order: (a, b) => gapRank(a) - gapRank(b) },
+  tour: { name: "3D tour", order: (a, b) => tourRank(a) - tourRank(b) },
 };
+
+// Buildings with a scan filed under their own id first, then a scan at the address, then the rest
+function tourRank(f) {
+  return f.properties.tour === "costar_id" ? 0 : f.properties.tour ? 1 : 2;
+}
 
 function status(p) {
   if (p.map_only) return "Indicative location";
@@ -31,7 +37,7 @@ export default function BuildingList({ features, selectedId, hoveredId, onSelect
       <h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
       <div className="catalog-tools">
         <div className="sort" role="group" aria-label="Sort towers">
-          {Object.entries(SORTS).map(([key, { name }]) =>
+          {Object.entries(SORTS).filter(([key]) => key !== "tour" || rows.some(f => f.properties.tour)).map(([key, { name }]) =>
             <button key={key} aria-pressed={sort === key} onClick={() => setSort(key)}>{name}</button>)}
         </div>
         {count >= 2 && <button className="text-button" onClick={onCompare}>Compare</button>}
