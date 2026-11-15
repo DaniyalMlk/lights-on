@@ -466,3 +466,9 @@ input[type="checkbox"] { accent-color: var(--lamp); }
 @media (prefers-reduced-motion: no-preference) {
   .compare-metric dd { animation: row-in 280ms var(--ease) both; transition: background-color 160ms var(--ease); }
 }
+.incentive-marks { position: relative; height: 13px; margin: -3px 10px 2px; pointer-events: none; }
+.stage[data-comparing="true"] .incentive-marks { height: 26px; }
+.incentive-marks span { position: absolute; transform: translateX(-50%); border-top: 2px solid var(--lamp); color: var(--lamp); font: 600 10px/11px var(--mono); pointer-events: auto; cursor: help; }
+.support-summary { margin-top: 4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.support-summary small { display: block; color: var(--text-2); transition: color 280ms var(--ease); }
+.support-summary [data-met="true"] { color: var(--lamp); }

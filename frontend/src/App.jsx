@@ -7,14 +7,17 @@ import ProofPanel from "./ProofPanel.jsx";
 import ComparePanel from "./ComparePanel.jsx";
 import BuildingList from "./BuildingList.jsx";
 
+import { incentiveMax, incentiveStep, perFoot, requiredIncentive, sliderThreshold, supportStatus, thresholdNote } from "./incentive.js";
+
 // Does the residual cover the price at this incentive? gap is $/SF still missing (for sorting); null = no price
 function evaluate(p, incentive) {
-  if (p.residual_base == null || p.residual_worst == null || !p.assessed_value || !p.gfa_sf)
+  const required = requiredIncentive(p);
+  if (required === null)
     return { label: "No price to compare with", short: "No price to compare", covers: false, gap: null };
   const credit = incentive * p.gfa_sf;
-  if (p.residual_worst + credit >= p.assessed_value)
+  if (incentive >= required && p.residual_worst + credit >= p.assessed_value)
     return { label: "Pencils at today's basis", short: "Pencils at today's basis", covers: true, gap: -Infinity };
-  const gap = (p.assessed_value - p.residual_base - credit) / p.gfa_sf;
+  const gap = required - incentive;
   if (gap <= 0) return { label: "Pencils at a distressed basis", short: "Pencils at a distressed basis", covers: true, gap };
   return { label: `Needs $${Math.ceil(gap)}/SF of basis or incentives`, short: `Needs $${Math.ceil(gap)}/SF more`, covers: false, gap };
 }
@@ -169,6 +172,9 @@ export default function App() {
   const allHomes = towers.reduce((sum, f) => sum + (f.properties.homes ?? 0), 0);
   const names = useMemo(() => (buildings?.features ?? []).map(f => [f.properties.id, f.properties.name]), [buildings]);
   const selected = mapData?.features.find((f) => f.properties.id === selectedId)?.properties;
+  const tracked = comparing
+    ? pair.map(id => towers.find(f => f.properties.id === id)?.properties)
+    : view === "building" && tab === "Overview" ? [selected] : [];
   const passed = proof ? proof.cases.filter(c => c.status === "pass").length : 0;
   const scored = proof ? proof.cases.filter(c => c.status === "pass" || c.status === "miss").length : 0;
 
@@ -194,9 +200,9 @@ export default function App() {
         <div className="dock" ref={card}>
           <div className="dock-note">
             <ul className="legend">
-              <li className="lit">Could become homes and pay for itself</li>
-              <li className="dark">Not yet</li>
-              <li className="off">Filtered out</li>
+              <li className="lit" title="Potential homes in buildings that meet the financial threshold at the current incentive and vacancy settings">Potential Homes</li>
+              <li className="dark" title="The financial threshold is not met at the current incentive, or valuation data is unavailable">Needs Review</li>
+              <li className="off" title="Excluded by the current minimum vacancy filter">Not Included</li>
             </ul>
             <p className="hint" data-seen={explored}>{mode === "move"
               ? "Drag to move · Shift + drag to turn · Scroll to zoom"
@@ -208,9 +214,31 @@ export default function App() {
                 <label htmlFor="incentive">Hypothetical incentive</label>
                 <output htmlFor="incentive">${incentive}<small>/SF</small></output>
               </div>
-              <input id="incentive" type="range" min="0" max="250" step="5" value={incentive}
-                     className={touched ? "" : "beckon"} style={{ "--p": `${incentive / 2.5}%` }}
+              <input id="incentive" type="range" min="0" max={incentiveMax} step={incentiveStep} value={incentive}
+                     className={touched ? "" : "beckon"} style={{ "--p": `${100 * incentive / incentiveMax}%` }}
                      onChange={(e) => { setTouched(true); setIncentive(Number(e.target.value)); }} />
+              {tracked.some(Boolean) && <>
+                <div className="incentive-marks">{tracked.map((building, i) => {
+                  const required = requiredIncentive(building);
+                  const tick = sliderThreshold(required);
+                  if (tick === null || tick > incentiveMax) return null;
+                  const label = comparing ? ["A", "B"][i] : "▴";
+                  return <span key={i} style={{ left: `${100 * tick / incentiveMax}%`, top: i * 13 }}
+                    title={`${building.name} · Required ${perFoot(required)} · Reached at ${perFoot(tick)}`}>{label}</span>;
+                })}</div>
+                {tracked.map((building, i) => {
+                  if (!building) return null;
+                  const required = requiredIncentive(building);
+                  return <div className="support-summary" key={i}>
+                    <b>{comparing ? ["A · ", "B · "][i] : ""}Required incentive</b> {required === null ? "Unavailable" : perFoot(required)}
+                    {thresholdNote(required) && <small>{thresholdNote(required)}</small>}
+                    {!comparing && <small>Additional support needed · {required === null ? "Unavailable" : perFoot(Math.max(0, required - incentive))}</small>}
+                    {required !== null && <small data-met={incentive >= required}>{supportStatus(required, incentive)}</small>}
+                    {building.gated_out && <small>Filtered out by vacancy</small>}
+                  </div>;
+                })}
+                <p className="fine">Support needed to reach the map’s reference value in the base case. Marks show the first eligible slider step.</p>
+              </>}
             </div>
             <div className={`result ${litTowers.length ? "lit" : ""}`} aria-live="polite">
               <b>{mapData ? <AnimatedNumber value={litHomes} /> : "–"}</b>

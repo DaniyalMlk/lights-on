@@ -1,3 +1,4 @@
+import { perFoot, requiredIncentive, supportStatus, thresholdNote } from "./incentive.js";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { money } from "./format.js";
 
@@ -84,6 +85,7 @@ export default function ComparePanel({ towers, pair, slot, onSlot, onChoose, inc
   const count = pair.filter(Boolean).length;
   const options = towers.map(f => f.properties);
   const cases = records.map(r => r?.econ?.cases?.[scenario]);
+  const thresholds = pair.map(id => requiredIncentive(options.find(p => p.id === id)));
   const costs = cases.map(c => c?.cost);
   const price = cases.map((c, i) => {
     const gfa = records[i]?.econ?.inputs?.gfa;
@@ -114,6 +116,8 @@ export default function ComparePanel({ towers, pair, slot, onSlot, onChoose, inc
             notes={records.map(r => r?.building?.rent_comps > 0 ? `Based on ${r.building.rent_comps} apartment comparables` : null)}
             format={v => `$${v.toFixed(2)}`} />
           <Metric label="Supported purchase price (residual)" values={price} advantage="higher" format={money} />
+          <Metric label="Required incentive · map base case" values={thresholds} format={perFoot} advantage="lower"
+            notes={thresholds.map(v => v === null ? null : [thresholdNote(v), supportStatus(v, incentive)].filter(Boolean).join(" · "))} />
           <Metric label="Reference value" values={refs} notes={records.map(r => r?.building?.reference_source ??
             (r?.building?.assessed_value != null ? "Assessed value" : null))} format={money} />
           <Metric label="Purchase capacity minus reference value" values={price.map((v, i) =>
