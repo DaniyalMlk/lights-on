@@ -295,6 +295,11 @@ input[type="range"].quiet::-webkit-slider-thumb { width: 14px; height: 14px; mar
 .scan-label.checked::before { background: var(--pass); }
 .scan-label.checked .kind { color: var(--pass); }
 .scan-label.estimate::before { background: var(--text); }
+.scan-label.interior::before { background: #7aa3f7; }
+.scan-label.interior .kind { color: #7aa3f7; }
+.rooms { margin-top: 14px; }
+.rooms p { margin-top: 6px; }
+.rooms .scan-labels { margin-top: 8px; max-height: 300px; overflow-y: auto; }
 
 /* Does it pay? */
 .verdict { margin-top: 8px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }

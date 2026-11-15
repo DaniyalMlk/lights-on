@@ -4,6 +4,7 @@ import { verifiedConversion } from "./calibration.js";
 
 // Tag colors in the tour, by how we know the fact
 const colors = {measured:[1,.78,.25], checked:[.35,.85,.55], assumed:[.65,.68,.72], estimate:[1,1,1]};
+const interior = [.48,.64,.97];                    // a room with no outer wall
 let sdkLoad;
 function loadSdk(key) {
   if (!sdkLoad) sdkLoad = new Promise((resolve,reject) => {
@@ -81,14 +82,16 @@ function Tour({scan, sdkKey, focus, onPlaced, onClose}) {
           p => sdk.Conversion.basisChange(p, sdk.Conversion.TransformType.Coordinates.TO_SDK));
         if (!active) return;
         if (!place) { setStatus("3D placement unavailable: scan positions did not match. The floor labels are in the panel."); return; }
-        const placed = await sdk.Mattertag.add(scan.labels.map(label => {
-          const [r,g,b] = colors[label.kind];
+        // The floor's labels first, then one for every room: a label's place in this list is what focus.index points at
+        const rooms = scan.rooms ?? [];
+        const placed = await sdk.Mattertag.add([...scan.labels, ...rooms].map(label => {
+          const [r,g,b] = label.tone === "interior" ? interior : colors[label.kind];
           return {label: label.kind + " · " + label.title, description: label.detail,
             anchorPosition:place(label.position),stemVector:{x:0,y:0.15,z:0},color:{r,g,b}};
         }));
         if (!active) return;
         tags.current = {sdk, ids: placed};
-        setStatus(`${placed.length} labels placed by matching ${scan.panos?.length ?? 0} scan positions. Click one in the panel to fly to it.`);
+        setStatus(`${scan.labels.length} floor labels${rooms.length ? ` and ${rooms.length} room labels` : ""} placed by matching ${scan.panos?.length ?? 0} scan positions. Click one in the panel to fly to it.`);
         onPlaced(true);
         startOutside(sdk);
       } catch {
@@ -204,5 +207,15 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
               title={canFly ? "Fly to this label in the tour" : "Show how we know"}
               onClick={() => onFocus(i)}>
         <span className="kind">{l.kind}</span><strong>{l.title}</strong><small>{l.detail}</small></button></li>)}</ul>
+    {scan.rooms?.length > 0 && <details className="explain rooms">
+      <summary>Every room, labeled: {scan.room_summary.total} rooms</summary>
+      <p>{scan.room_summary.outer_wall} on the outer wall, {scan.room_summary.interior} interior, each measured from its own walls.
+        Matterport gives a type to {scan.room_summary.typed} of them.</p>
+      <ul className="scan-labels">{scan.rooms.map((l,i) => <li key={i}>
+        <button className={"scan-label "+l.kind+(l.tone ? " "+l.tone : "")} aria-expanded={focus?.index === scan.labels.length + i}
+                title={canFly ? "Fly to this room in the tour" : "Show how we know"}
+                onClick={() => onFocus(scan.labels.length + i)}>
+          <span className="kind">{l.kind}</span><strong>{l.title}</strong><small>{l.detail}</small></button></li>)}</ul>
+    </details>}
   </section>;
 }
