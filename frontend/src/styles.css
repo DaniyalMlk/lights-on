@@ -436,3 +436,48 @@ input[type="checkbox"] { accent-color: var(--lamp); }
   .tour { right: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+@media (min-width: 861px) {
+  .side { transition: width 280ms var(--ease); }
+  .stage[data-comparing="true"] { --panel: clamp(388px, 29vw, 440px); }
+  .stage[data-compare-wide="true"] { --panel: clamp(404px, 38.7vw, 630px); }
+}
+.compare-pair, .compare-metric { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
+.catalog-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.compare-menu input, .compare-menu button { color: var(--text); font-family: inherit; }
+.compare-pair { margin-top: 16px; }
+.compare-picker { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.compare-picker h3 { overflow-wrap: anywhere; line-height: 1.25; }
+.compare-picker > button { margin-top: auto; }
+.compare-menu { position: absolute; z-index: 5; top: 100%; left: 0; width: max(100%, 190px); padding: 8px; border-radius: 12px; background: var(--surface); box-shadow: var(--float); }
+.compare-picker:last-child .compare-menu { left: auto; right: 0; }
+.compare-menu input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--sheet); }
+.compare-menu > div { max-height: 220px; overflow-y: auto; }
+.compare-menu button { display: block; width: 100%; padding: 8px; border: 0; border-radius: 6px; text-align: left; background: none; }
+.compare-menu button:is(:hover,:focus-visible) { background: var(--surface-2); }
+.compare dl { margin: 12px 0 0; }
+.compare-metric { padding: 10px 0; border-top: 1px solid var(--line); }
+.compare-metric dt { grid-column: 1 / -1; color: var(--text-2); }
+.compare-metric dd { margin: 0; padding: 5px 8px; border-radius: 8px; font-size: 17px; font-weight: 550; }
+.compare-metric dd small { display: block; font-size: 12px; font-weight: 400; color: var(--text-2); }
+.compare-metric dd[data-better="true"] { background: var(--lamp-wash); }
+.compare-metric dd[data-better="true"] small { color: var(--lamp); }
+.compare-section-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.pin[data-slot] { visibility: visible; background: var(--sheet); color: var(--lamp); box-shadow: 0 0 0 2px var(--lamp); }
+.pin[data-slot]::after { content: attr(data-slot); font: 600 13px var(--mono); }
+.pin[data-slot]::before, .pin[data-slot] span { display: none; }
+
+/* Keep the map target under the pointer when a neighboring tower gains hover. */
+.stage[data-comparing="true"] .pin { width: 26px; justify-content: center; padding: 0; }
+.stage[data-comparing="true"] .pin span { display: none; }
+.stage[data-comparing="true"] .pin:not([data-slot])::before { display: block; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .compare-metric dd { animation: row-in 280ms var(--ease) both; transition: background-color 160ms var(--ease); }
+}
+.incentive-marks { position: relative; height: 13px; margin: -3px 10px 2px; pointer-events: none; }
+.stage[data-comparing="true"] .incentive-marks { height: 26px; }
+.incentive-marks span { position: absolute; transform: translateX(-50%); border-top: 2px solid var(--lamp); color: var(--lamp); font: 600 10px/11px var(--mono); pointer-events: auto; cursor: help; }
+.support-summary { margin-top: 4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.support-summary small { display: block; color: var(--text-2); transition: color 280ms var(--ease); }
+.support-summary [data-met="true"] { color: var(--lamp); }

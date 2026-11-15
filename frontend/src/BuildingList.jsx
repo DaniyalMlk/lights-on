@@ -22,13 +22,15 @@ function status(p) {
   return p.short;
 }
 
-export default function BuildingList({ features, selectedId, hoveredId, onSelect, onHover, error }) {
+export default function BuildingList({ features, selectedId, hoveredId, onSelect, onHover, onCompare, error }) {
   const [sort, setSort] = useState("cases");
   const rows = features ? [...features].sort(SORTS[sort].order) : [];
   const count = features?.filter(f => !f.properties.map_only).length;
   return <section className="catalog" aria-label="Building list">
     <header className="catalog-head">
-      <h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
+      <div className="catalog-title"><h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
+        {count >= 2 && <button className="secondary" onClick={onCompare}>Compare</button>}
+      </div>
       <div className="sort" role="group" aria-label="Sort towers">
         {Object.entries(SORTS).map(([key, { name }]) =>
           <button key={key} aria-pressed={sort === key} onClick={() => setSort(key)}>{name}</button>)}
