@@ -237,9 +237,13 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
                 onClick={() => onFocus(scan.labels.length + i)}>
           <span className="kind">{l.kind}{l.seen ? " · type seen by AI" : ""}</span>
           <strong>{l.seen ? l.seen.type + " · " : ""}{l.title}</strong><small>{l.detail}</small></button>
-        {l.seen && <p className="room-check">Is "{l.seen.type}" right?
-          {["right","wrong"].map(answer => <button key={answer} className="text-button" aria-pressed={l.seen.checked === answer}
-            onClick={() => check(l.room_id, l.seen.checked === answer ? null : answer === "right")}>{answer === "right" ? "Right" : "Wrong"}</button>)}</p>}</li>)}</ul>
+        {/* A check only counts if the person is standing in that room in the tour: the buttons wait for that */}
+        {l.seen && (canFly && focus?.index === scan.labels.length + i
+          ? <p className="room-check">You are in this room in the tour. Is "{l.seen.type}" right?
+              {["right","wrong"].map(answer => <button key={answer} className="text-button" aria-pressed={l.seen.checked === answer}
+                onClick={() => check(l.room_id, l.seen.checked === answer ? null : answer === "right")}>{answer === "right" ? "Right" : "Wrong"}</button>)}</p>
+          : <p className="room-check">{l.seen.checked ? `A person checked this in the tour: ${l.seen.checked}.`
+              : canFly ? "To check it, click this room and look at it in the tour." : "To check it, open the 3D tour and click this room."}</p>)}</li>)}</ul>
     </details>}
   </section>;
 }
