@@ -9,17 +9,7 @@ import BuildingList from "./BuildingList.jsx";
 
 import { INCENTIVE_MAX, INCENTIVE_STEP, breakEven, firstStep } from "./incentive.js";
 
-// Does the residual cover the price at this incentive? gap is $/SF still missing (for sorting); null = no price
-function evaluate(p, incentive) {
-  if (p.residual_base == null || p.residual_worst == null || !p.assessed_value || !p.gfa_sf)
-    return { label: "No price to compare with", short: "No price to compare", covers: false, gap: null };
-  const credit = incentive * p.gfa_sf;
-  if (p.residual_worst + credit >= p.assessed_value)
-    return { label: "Pencils at today's basis", short: "Pencils at today's basis", covers: true, gap: -Infinity };
-  const gap = (p.assessed_value - p.residual_base - credit) / p.gfa_sf;
-  if (gap <= 0) return { label: "Pencils at a distressed basis", short: "Pencils at a distressed basis", covers: true, gap };
-  return { label: `Needs $${Math.ceil(gap)}/SF of basis or incentives`, short: `Needs $${Math.ceil(gap)}/SF more`, covers: false, gap };
-}
+import { screenBuildings } from "./screenBuildings.js";
 
 // A tower with a few windows lit: the brand mark (the favicon is the same drawing)
 function WindowMark() {
@@ -33,6 +23,7 @@ function WindowMark() {
 }
 
 export default function App() {
+  const [showIntro, setShowIntro] = useState(() => new URLSearchParams(location.search).get("view") === "map" && !sessionStorage.getItem("map-intro-seen"));
   const [buildings, setBuildings] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
@@ -77,6 +68,7 @@ export default function App() {
   }
   // One tower is something you turn around; the whole city is something you move across
   function selectBuilding(id) {
+    if (id) { setShowIntro(false); sessionStorage.setItem("map-intro-seen", "1"); }
     setSelectedId(id);
     if (id !== selectedId) { setPlate(null); setMarks([]); setFocus(null); setExplored(false); }
     setMode(id ? "turn" : "move");
@@ -158,17 +150,7 @@ export default function App() {
   }, []);
 
   // Recompute verdicts for the current slider values
-  const mapData = useMemo(() => {
-    if (!buildings) return null;
-    const features = buildings.features.map((f) => {
-      const p = f.properties;
-      const gated = (p.vacancy ?? 0) * 100 < vacancyGate;
-      const verdict = evaluate(p, incentive);
-      return { ...f, properties: { ...p, label: verdict.label, short: verdict.short, gap: verdict.gap,
-                                   gated_out: gated, lit: !gated && verdict.covers } };
-    });
-    return { ...buildings, features };
-  }, [buildings, incentive, vacancyGate]);
+  const mapData = useMemo(() => screenBuildings(buildings, incentive, vacancyGate), [buildings, incentive, vacancyGate]);
 
   const towers = mapData?.features.filter(f => !f.properties.map_only) ?? [];
   const litTowers = towers.filter(f => f.properties.lit);
@@ -198,6 +180,7 @@ export default function App() {
                              onSelect={comparing ? choose : selectBuilding} onHover={setHoveredId} onGrab={() => setExplored(true)}
                              onMode={(next) => { setMode(next); setExplored(false); }} onMark={pickLabel} />}
 
+        {showIntro && view === "list" && <p className="map-welcome">Select a building to explore its housing potential.</p>}
         <header className="island">
           <a className="brand" href="/" aria-label="Lights On, start over"><WindowMark />Lights On</a>
           <nav className="topnav" aria-label="Sections">

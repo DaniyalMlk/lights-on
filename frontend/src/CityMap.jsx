@@ -232,12 +232,13 @@ function towerView(map, feature, rightInset) {
            metersPerPixel: Math.max(metersPerPixelAt(19.4, at.lat), Math.min(metersPerPixelAt(16.8, at.lat), metersPerPixel)) };
 }
 
-export default function CityMap({ data, pair, selectedId, hoveredId, rightInset, bottomInset, mode, plate, marks, focus,
+export default function CityMap({ data, preview = false, pair, selectedId, hoveredId, rightInset, bottomInset, mode, plate, marks, focus,
                                   onSelect, onHover, onGrab, onMode, onMark }) {
   const container = useRef(null);
   const map = useRef(null);
   const pins = useRef(new Map());
   const progress = useRef(new Map());
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [ready, setReady] = useState(false);
   const [orbiting, setOrbiting] = useState(false);
   const flying = useRef(false);
@@ -246,7 +247,7 @@ export default function CityMap({ data, pair, selectedId, hoveredId, rightInset,
   const aim = useRef(0);                           // how high above the street the camera is aiming, metres
   const latest = useRef({});
   const planClock = useRef({ plate: null, plateAt: 0, marks: null, marksAt: 0 });
-  latest.current = { data, mode, onSelect, onHover, onGrab, onMark, rightInset, bottomInset,
+  latest.current = { data, preview, mode, onSelect, onHover, onGrab, onMark, rightInset, bottomInset,
                      active: [selectedId, hoveredId].filter(Boolean) };
 
   // Move the camera to a new view, step by step (MapLibre's own flyTo only knows views at street level)
@@ -296,8 +297,9 @@ export default function CityMap({ data, pair, selectedId, hoveredId, rightInset,
       instance = new MapLibreMap({
         container: container.current,
         style,
-        center: [-95.366, 29.757],
-        zoom: 15,
+        center: preview ? [-95.3665, 29.7585] : [-95.366, 29.757],
+        interactive: !preview,
+        zoom: preview ? 15.25 : 15,
         maxPitch: MAX_PITCH,
         minZoom: 11.5,
         maxBounds: HOUSTON,
@@ -314,20 +316,24 @@ export default function CityMap({ data, pair, selectedId, hoveredId, rightInset,
         credit?.removeAttribute("open");
         credit?.classList.remove("maplibregl-compact-show");
       };
-      takeOverGestures(instance, () => latest.current.mode, () => aim.current,
+      if (!preview) takeOverGestures(instance, () => latest.current.mode, () => aim.current,
                        () => { halt(); setOrbiting(false); foldCredit(); latest.current.onGrab?.(); });
-      instance.addControl(new AttributionControl({ compact: true }), "top-right");   // the dock owns the bottom edge
+      if (!preview) instance.addControl(new AttributionControl({ compact: true }), "top-right");   // the dock owns the bottom edge
       map.current = instance;
       instance.once("load", () => {
         try {
           instance.setSky({ "sky-color": "#1b2947", "horizon-color": "#4a4670", "fog-color": "#182236",
                             "sky-horizon-blend": 0.7, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.6 });
         } catch { /* older renderer: no sky, same map */ }
+        if (preview) instance.on("webglcontextlost", () => setPreviewFailed(true));
         addLayers(instance, latest, pins.current);
         // Grabbing the map takes over from the automatic orbit
         for (const event of ["mousedown", "touchstart", "wheel"]) instance.on(event, () => { halt(); setOrbiting(false); });
         setReady(true);
       });
+    }).catch(error => {
+      if (preview && !cancelled) setPreviewFailed(true);
+      else if (!cancelled) console.error(error);
     });
     return () => {
       cancelled = true;
@@ -342,6 +348,7 @@ export default function CityMap({ data, pair, selectedId, hoveredId, rightInset,
   useEffect(() => {
     const instance = map.current;
     if (!ready || !instance) return;
+    if (preview) return;
     instance.setPadding({ top: 0, bottom: 0, left: 0, right: rightInset });
     if (!latest.current.active.length) glide(overview(instance, latest.current), 0);
   }, [rightInset, bottomInset, ready]);
@@ -399,6 +406,7 @@ export default function CityMap({ data, pair, selectedId, hoveredId, rightInset,
   useEffect(() => {
     const instance = map.current;
     if (!ready || !instance) return;
+    if (preview) return;
     if (!selectedId) {
       setOrbiting(false);
       glide(overview(instance, latest.current), 1000);
@@ -489,6 +497,7 @@ export default function CityMap({ data, pair, selectedId, hoveredId, rightInset,
                   : overview(instance, latest.current), 900);
   }
 
+  if (preview) return <div ref={container} className="map hero-live-map" style={{opacity: ready && !previewFailed ? 1 : 0}} />;
   return <>
     <div ref={container} className="map" />
     {!ready && <p className="map-loading" role="status">Loading downtown Houston…</p>}
@@ -622,6 +631,7 @@ function addLayers(map, latest, pins) {
       "fill-extrusion-vertical-gradient": false,
     },
   });
+  if (latest.current.preview) return;
   // A label's beacon can be clicked: the panel opens that label, and the 3D tour flies to it if it is open
   const markUnder = (e) => e.features.find(f => f.properties.mark != null)?.properties.mark;
   map.on("click", "plan-3d", (e) => { const mark = markUnder(e); if (mark != null) latest.current.onMark?.(mark); });

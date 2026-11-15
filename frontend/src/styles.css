@@ -487,3 +487,4 @@ input[type="checkbox"] { accent-color: var(--lamp); }
   transition: color 200ms var(--ease), border-color 200ms var(--ease); }
 .incentive-marks span[data-met="true"] { border-color: var(--lamp); color: var(--lamp); }
 @keyframes mark-in { from { opacity: 0; } }
+.map-welcome {position:absolute;left:16px;top:76px;padding:8px 14px;background:var(--glass);color:var(--text);border-radius:16px;pointer-events:none;}
