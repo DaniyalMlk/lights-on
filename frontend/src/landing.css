@@ -10,31 +10,31 @@ html:has(.landing) { scroll-behavior: smooth; scroll-padding-top: 88px; }
 .lp-nav { position: fixed; z-index: 20; }
 .lp-nav .lp-nav-open { color: var(--lamp); }
 
-/* Small mono label above a heading; the step number is lamp-colored */
+/* Small mono label above a section heading; it matches the name in the top bar */
 .lp-eyebrow { font: 500 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
-.lp-eyebrow b { margin-right: 12px; font-weight: 500; color: var(--lamp); }
+.lp-copy .lp-eyebrow { color: var(--lamp); }
 
-/* Hero: the live map fills it, the text sits on the left over a soft shade */
-.lp-hero { position: relative; isolation: isolate; display: grid; grid-template-rows: 1fr auto; gap: 40px;
-  min-height: 100dvh; padding-top: 132px; padding-bottom: 26px; }
+/* Hero: the live map fills it. The headline sits centered in the upper part, over a shade that fades out
+   toward the towers; the readout sits centered at the bottom. */
+.lp-hero { position: relative; isolation: isolate; display: grid; grid-template-rows: 1fr auto; justify-items: center; gap: 40px;
+  min-height: 100dvh; padding-top: clamp(112px, 17vh, 190px); padding-bottom: 30px; }
 .lp-backdrop { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
 .lp-backdrop::after { content: ""; position: absolute; inset: 0; background:
-  linear-gradient(90deg, var(--night) 4%, rgba(20, 28, 43, 0.8) 30%, rgba(20, 28, 43, 0) 64%),
-  linear-gradient(180deg, var(--night) 0%, rgba(20, 28, 43, 0) 26%, rgba(20, 28, 43, 0) 74%, var(--night) 100%); }
+  linear-gradient(180deg, var(--night) 0%, rgba(20, 28, 43, 0.9) 24%, rgba(20, 28, 43, 0.5) 44%, rgba(20, 28, 43, 0) 62%),
+  linear-gradient(0deg, var(--night) 0%, rgba(20, 28, 43, 0) 24%); }
 .hero-live-map { transition: opacity 1200ms var(--ease); }
 
-.lp-hero-text { align-self: center; max-width: 780px; }
-.lp-hero h1 { margin-top: 22px; font-size: clamp(40px, 4.7vw, 78px); font-weight: 560; line-height: 1.02; letter-spacing: -0.05em; text-wrap: balance; }
+.lp-hero-text { max-width: 900px; text-align: center; }
+.lp-hero h1 { font-size: clamp(40px, 5.2vw, 84px); font-weight: 560; line-height: 1.02; letter-spacing: -0.05em; text-wrap: balance; }
 .lp-hero h1 em { font-style: normal; color: var(--lamp); }
-.lp-lede { margin-top: 26px; max-width: 31em; font-size: clamp(16px, 1.25vw, 19px); line-height: 1.55; color: var(--text-2); }
-.lp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; margin-top: 36px; }
+.lp-lede { max-width: 33em; margin: 24px auto 0; font-size: clamp(16px, 1.25vw, 19px); line-height: 1.55; color: var(--text-2); text-wrap: balance; }
+.lp-hero .lp-button { margin-top: 32px; }
 
-/* The main button: a lamp-colored pill with the arrow in its own circle */
-.lp-button { display: inline-flex; align-items: center; gap: 16px; padding: 7px 7px 7px 22px; border-radius: 999px;
+/* The main button: one lamp-colored pill */
+.lp-button { display: inline-flex; align-items: center; gap: 10px; padding: 13px 24px; border-radius: 999px;
   background: var(--lamp); color: var(--lamp-ink) !important; font-size: 15px; font-weight: 600;
   transition: background 200ms var(--ease), transform 160ms var(--ease); }
-.lp-button span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
-  background: rgba(43, 29, 5, 0.13); transition: transform 300ms var(--ease); }
+.lp-button span { transition: transform 300ms var(--ease); }
 .lp-button:hover { background: #ffd07c; }
 .lp-button:hover span { transform: translate(2px, -2px); }
 .lp-button:active { transform: scale(0.97); }
@@ -45,7 +45,7 @@ html:has(.landing) { scroll-behavior: smooth; scroll-padding-top: 88px; }
 .lp-link:hover span { transform: translate(2px, -2px); }
 
 /* The readout under the hero text: the incentive as it plays, and what it lights up */
-.lp-hero-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.lp-hero-foot { display: grid; justify-items: center; gap: 12px; width: 100%; }
 .lp-readout { width: min(420px, 100%); padding: 16px 18px 15px; border-radius: 18px; background: var(--glass); box-shadow: var(--float);
   font-variant-numeric: tabular-nums; }
 .lp-readout-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-weight: 500; }
@@ -56,7 +56,7 @@ html:has(.landing) { scroll-behavior: smooth; scroll-padding-top: 88px; }
 .lp-readout p { display: flex; align-items: baseline; gap: 6px; color: var(--text-2); }
 .lp-readout p b { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; color: var(--lamp); }
 .lp-readout p small { margin-left: auto; font-size: 12.5px; color: var(--text-3); }
-.lp-credit { font-size: 10.5px; color: var(--text-3); white-space: nowrap; }
+.lp-credit { font-size: 10.5px; color: var(--text-3); }
 
 /* A section: a figure and a few lines of copy, side by side */
 .lp-section { padding-top: clamp(96px, 11vw, 176px); }
@@ -126,7 +126,6 @@ html:has(.landing) { scroll-behavior: smooth; scroll-padding-top: 88px; }
 .lp-hero-text > :nth-child(1) { animation-delay: 120ms; }
 .lp-hero-text > :nth-child(2) { animation-delay: 200ms; }
 .lp-hero-text > :nth-child(3) { animation-delay: 300ms; }
-.lp-hero-text > :nth-child(4) { animation-delay: 400ms; }
 .lp-readout { animation-delay: 620ms; }
 .lp-reveal > * { opacity: 0; transform: translateY(22px); transition: opacity 800ms var(--ease), transform 800ms var(--ease); }
 .lp-reveal > :nth-child(2) { transition-delay: 110ms; }
@@ -135,10 +134,7 @@ html:has(.landing) { scroll-behavior: smooth; scroll-padding-top: 88px; }
 
 @media (max-width: 899px) {
   .lp-nav .topnav a:not(.lp-nav-open) { display: none; }
-  .lp-hero { padding-top: 104px; }
-  .lp-backdrop::after { background: linear-gradient(180deg, var(--night) 0%, rgba(20, 28, 43, 0.82) 38%, rgba(20, 28, 43, 0.2) 70%, var(--night) 100%); }
-  .lp-hero-text { align-self: start; }
-  .lp-hero-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+  .lp-hero { padding-top: 112px; }
   .lp-split, .lp-split.copy-first { grid-template-columns: minmax(0, 1fr); }
   .lp-split .lp-copy { order: -1; }
   .lp-sources ul { grid-template-columns: minmax(0, 1fr); }

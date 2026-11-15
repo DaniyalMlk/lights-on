@@ -70,6 +70,7 @@ const ORBIT_DEG_PER_S = 9;    // one full turn in 40 seconds
 const CAMERA = { pitch: 60, bearing: -24 };
 const MAX_PITCH = 78;
 const DRIFT_DEG_PER_MS = 360 / 240000;   // the introduction's background turns once in four minutes
+const ROOF_LIT = "#a57b32";   // a lit tower's roof: amber, a step below the window panes
 const ROOF_M = 1;              // thickness of the plain roof slab on each tower; the floor plan stands on it
 const TILT_ZOOM = 0.7;         // the fit is worked out for a flat map; tilted, the towers take less height, so we go closer
 const HOUSTON = [[-95.75, 29.5], [-95.0, 30.0]];   // the view never leaves the city
@@ -114,6 +115,7 @@ function frame(data, progress, activeIds, shaped) {
           id: p.id,
           h,
           lit_h: h * easeOut(progress.get(p.id) ?? 0),
+          warm: progress.get(p.id) ?? 0,          // 0 to 1: how far the lights have climbed; the roof warms up last
           dark: p.gated_out || p.map_only ? (active ? "win-dark" : "win-off") : active ? "win-dark-hi" : "win-dark",
           lit: active ? "win-lit-hi" : "win-lit",
         },
@@ -233,7 +235,7 @@ function towerView(map, feature, rightInset) {
            metersPerPixel: Math.max(metersPerPixelAt(19.4, at.lat), Math.min(metersPerPixelAt(16.8, at.lat), metersPerPixel)) };
 }
 
-export default function CityMap({ data, preview = false, drift = false, leftInset = 0, pair, selectedId, hoveredId, rightInset, bottomInset,
+export default function CityMap({ data, preview = false, drift = false, topInset = 0, pair, selectedId, hoveredId, rightInset, bottomInset,
                                   mode, plate, marks, focus, onSelect, onHover, onGrab, onMode, onMark }) {
   const container = useRef(null);
   const map = useRef(null);
@@ -300,7 +302,7 @@ export default function CityMap({ data, preview = false, drift = false, leftInse
         style,
         center: preview ? [-95.3655, 29.7578] : [-95.366, 29.757],
         interactive: !preview,
-        zoom: preview ? 15.35 : 15,
+        zoom: preview ? 15.5 : 15,
         maxPitch: MAX_PITCH,
         minZoom: 11.5,
         maxBounds: HOUSTON,
@@ -354,12 +356,12 @@ export default function CityMap({ data, preview = false, drift = false, leftInse
     if (!latest.current.active.length) glide(overview(instance, latest.current), 0);
   }, [rightInset, bottomInset, ready]);
 
-  // As the introduction's background (preview): downtown stays clear of the text on the left,
+  // As the introduction's background (preview): downtown sits below the headline,
   // and the camera circles it slowly while drift is on
   useEffect(() => {
     const instance = map.current;
     if (!preview || !ready || !instance) return;
-    instance.setPadding({ top: 0, bottom: 0, left: leftInset, right: 0 });
+    instance.setPadding({ top: topInset, bottom: 0, left: 0, right: 0 });
     if (!drift || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let request = 0;
     let last = performance.now();
@@ -370,7 +372,7 @@ export default function CityMap({ data, preview = false, drift = false, leftInse
     }
     request = requestAnimationFrame(turn);
     return () => cancelAnimationFrame(request);
-  }, [preview, ready, drift, leftInset]);
+  }, [preview, ready, drift, topInset]);
 
   // Lights climb a tower when it starts to pay, and go out when it stops. Pins follow at once:
   // lit towers get a full pin with their home count, the rest a small dot (Airbnb's two tiers).
@@ -589,7 +591,7 @@ function addLayers(map, latest, pins) {
     paint: {
       "circle-color": LAMP,
       "circle-blur": 1,
-      "circle-opacity": ["*", 0.5, ["get", "p"]],
+      "circle-opacity": ["*", latest.current.preview ? 0.7 : 0.5, ["get", "p"]],
       "circle-pitch-alignment": "map",
       "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 13, 14, 17, 170],
     },
@@ -615,13 +617,14 @@ function addLayers(map, latest, pins) {
       "fill-extrusion-opacity": 1,
     },
   });
-  // A plain roof: without it the window pattern would run across the top of every tower
+  // A plain roof: without it the window pattern would run across the top of every tower.
+  // When the lights reach the top of a tower its roof turns warm, dimmer than the windows.
   map.addLayer({
     id: "towers-roof", type: "fill-extrusion", source: "buildings",
     paint: {
       "fill-extrusion-base": ["get", "h"],
       "fill-extrusion-height": ["+", ["get", "h"], ROOF_M],
-      "fill-extrusion-color": "#1c2740",
+      "fill-extrusion-color": ["interpolate", ["linear"], ["get", "warm"], 0.8, "#1c2740", 1, ROOF_LIT],
       "fill-extrusion-opacity": 1,
       "fill-extrusion-vertical-gradient": false,
     },

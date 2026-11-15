@@ -53,7 +53,7 @@ function Reveal({ as: Tag = "section", className, id, children }) {
 }
 
 function Button({ href, children }) {
-  return <a className="lp-button" href={href}>{children}<span aria-hidden="true">↗</span></a>;
+  return <a className="lp-button" href={href}>{children} <span aria-hidden="true">↗</span></a>;
 }
 function TextLink({ href, children }) {
   return <a className="lp-link" href={href}>{children} <span aria-hidden="true">↗</span></a>;
@@ -64,7 +64,7 @@ export default function Landing() {
   const [detail, setDetail] = useState(null);           // the example building's full analysis
   const [proof, setProof] = useState(null);             // the validation cases
   const [incentive, setIncentive] = useState(() => stillPage() ? STILL_INCENTIVE : 0);
-  const [inset, setInset] = useState(0);                // room the hero text takes on the left, px
+  const [inset, setInset] = useState(0);                // room the headline takes at the top of the hero, px
   const [mapOn, setMapOn] = useState(true);
   const hero = useRef(null);
   const heroInView = useInView(hero, { threshold: 0.05 });
@@ -92,9 +92,9 @@ export default function Landing() {
     return () => clearInterval(timer);
   }, [collection, heroInView]);
 
-  // On a wide screen the text sits on the left, so the map aims at the middle of what is left
+  // The headline sits in the upper part of the hero, so the map aims at the middle of what is left below it
   useEffect(() => {
-    const measure = () => setInset(window.innerWidth >= 900 ? Math.round(window.innerWidth * 0.36) : 0);
+    const measure = () => setInset(Math.round(window.innerHeight * 0.36));
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
@@ -152,18 +152,14 @@ export default function Landing() {
     <section className="lp-hero" ref={hero}>
       <div className="lp-backdrop" aria-hidden="true">
         <Suspense fallback={null}>
-          {mapOn && scene && <BackdropMap preview data={scene} drift={heroInView} leftInset={inset} />}
+          {mapOn && scene && <BackdropMap preview data={scene} drift={heroInView} topInset={inset} />}
         </Suspense>
       </div>
       <div className="lp-hero-text">
-        <p className="lp-eyebrow">Downtown Houston · Office to housing</p>
         <h1>Find the offices that can become <em>homes.</em></h1>
-        <p className="lp-lede">Lights On screens every downtown office building: the homes that fit near a window,
-          and the incentive at which converting pays for itself.</p>
-        <div className="lp-actions">
-          <Button href="/">Open the map</Button>
-          <TextLink href="#check">How it was checked</TextLink>
-        </div>
+        <p className="lp-lede">Lights On screens every office building in downtown Houston: the homes that fit
+          near a window, and the incentive at which converting pays for itself.</p>
+        <Button href="/">Open the map</Button>
       </div>
       <div className="lp-hero-foot">
         <div className="lp-readout">
@@ -187,7 +183,7 @@ export default function Landing() {
         <figcaption>{a ? `${a.name} · indicative layout at 36 ft` : "Indicative layout at 36 ft"}</figcaption>
       </figure>
       <div className="lp-copy">
-        <p className="lp-eyebrow"><b>01</b>Measure</p>
+        <p className="lp-eyebrow">Measure</p>
         <h2>Bedrooms need windows.</h2>
         <p className="lp-body">We lay out the apartments that fit within 36 ft of a window. The middle of a deep floor stays dark.</p>
         {detail?.building?.synthetic && <p className="tag">Sample data, not a real building</p>}
@@ -202,7 +198,7 @@ export default function Landing() {
 
     <Reveal className="lp-section lp-split copy-first" id="price">
       <div className="lp-copy">
-        <p className="lp-eyebrow"><b>02</b>Price</p>
+        <p className="lp-eyebrow">Price</p>
         <h2>Which one deserves the study?</h2>
         <p className="lp-body">Value as homes minus the cost to convert, for every building. The lower the incentive
           a building needs, the closer it is to paying for itself.</p>
@@ -237,7 +233,7 @@ export default function Landing() {
         </li>)}
       </ol>
       <div className="lp-copy">
-        <p className="lp-eyebrow"><b>03</b>Check</p>
+        <p className="lp-eyebrow">Check</p>
         <h2>Checked against real projects.</h2>
         <p className="lp-body">Expected answers were written down before the official run.
           {scored.length > 0 && ` ${passed} of ${scored.length} scored cases passed, and the miss is shown.`}</p>
