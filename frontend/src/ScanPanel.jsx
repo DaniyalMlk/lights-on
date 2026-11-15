@@ -5,6 +5,8 @@ import { verifiedConversion } from "./calibration.js";
 // Tag colors in the tour, by how we know the fact
 const colors = {measured:[1,.78,.25], checked:[.35,.85,.55], assumed:[.65,.68,.72], estimate:[1,1,1]};
 const interior = [.48,.64,.97];                    // a room with no outer wall
+// {"Private office": 31, "Meeting room": 6} as "Private office 31, Meeting room 6"
+const tally = counts => Object.entries(counts ?? {}).map(([name,count]) => name + " " + count).join(", ");
 let sdkLoad;
 function loadSdk(key) {
   if (!sdkLoad) sdkLoad = new Promise((resolve,reject) => {
@@ -86,7 +88,8 @@ function Tour({scan, sdkKey, focus, onPlaced, onClose}) {
         const rooms = scan.rooms ?? [];
         const placed = await sdk.Mattertag.add([...scan.labels, ...rooms].map(label => {
           const [r,g,b] = label.tone === "interior" ? interior : colors[label.kind];
-          return {label: label.kind + " · " + label.title, description: label.detail,
+          // A room type the vision model saw leads the tag, marked as seen: it is not one of our measurements
+          return {label: (label.seen ? label.seen.type + " (seen by AI) · " : "") + label.kind + " · " + label.title, description: label.detail,
             anchorPosition:place(label.position),stemVector:{x:0,y:0.15,z:0},color:{r,g,b}};
         }));
         if (!active) return;
@@ -211,11 +214,15 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
       <summary>Every room, labeled: {scan.room_summary.total} rooms</summary>
       <p>{scan.room_summary.outer_wall} on the outer wall, {scan.room_summary.interior} interior, each measured from its own walls.
         Matterport gives a type to {scan.room_summary.typed} of them.</p>
+      {scan.room_summary.walked > 0 && <p>An AI model looked at a panorama in {scan.room_summary.walked} rooms and saw: {tally(scan.room_summary.seen) || "nothing it could name"}.
+        Seen, not measured, and not confirmed by a person.</p>}
+      {scan.room_summary.walked > 0 && <p>Amenities it found on this floor: {tally(scan.room_summary.amenities) || "none"}.</p>}
       <ul className="scan-labels">{scan.rooms.map((l,i) => <li key={i}>
         <button className={"scan-label "+l.kind+(l.tone ? " "+l.tone : "")} aria-expanded={focus?.index === scan.labels.length + i}
                 title={canFly ? "Fly to this room in the tour" : "Show how we know"}
                 onClick={() => onFocus(scan.labels.length + i)}>
-          <span className="kind">{l.kind}</span><strong>{l.title}</strong><small>{l.detail}</small></button></li>)}</ul>
+          <span className="kind">{l.kind}{l.seen ? " · type seen by AI" : ""}</span>
+          <strong>{l.seen ? l.seen.type + " · " : ""}{l.title}</strong><small>{l.detail}</small></button></li>)}</ul>
     </details>}
   </section>;
 }

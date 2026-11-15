@@ -8,10 +8,13 @@ Every label says how we know it:
 
 Besides the labels for the floor as a whole, every room in the scan gets one label of its own (room_labels):
 is it on the floor's outer wall, and how much of it is within reach of daylight. Both are measured.
+If a vision model has walked the scan (backend.tools.room_vision), the label also carries the room type the
+model saw in the room's panorama. That part is seen, not measured, and the label says nobody confirmed it.
 """
 from __future__ import annotations
 
 import statistics
+from collections import Counter
 
 from shapely.affinity import scale
 from shapely.errors import ShapelyError
@@ -21,12 +24,12 @@ from backend import config as C
 from backend.matterport import floor_outline
 from backend.tools.geometry import analyze_plate
 from backend.tools.layout import layout_units, plan_xy
-from backend.tools.matterport_plan import _room_polygons
+from backend.tools.matterport_plan import rooms_to_label
+from backend.tools.room_vision import AMENITIES
 
 FT_PER_M = 3.28084
 MIN_COVERAGE = 0.85          # a scan this much smaller than the typical floor is a suite, not the whole floor
 DEFAULT_HEIGHT_M = 1.5       # about eye height, if the scan has no camera positions
-ROOM_MIN_SF = 25.0           # smaller closed shapes are columns and shafts, not rooms (guess)
 OUTER_WALL_FT = 2.0          # a room wall this close to the floor's outline is the outer wall
 OUTER_WALL_MIN_FT = 5.0      # and it has to run along the outline at least this far, not just touch a corner
 
@@ -46,15 +49,14 @@ def _spot(point_ft, height_m: float, plate) -> dict:
     return {"position": _position(point_ft, height_m), "plan": {"x": round(x, 1), "y": round(y, 1)}}
 
 
-def room_labels(model: dict, plate, height_m: float) -> list[dict]:
+def room_labels(model: dict, plate, height_m: float, seen: dict | None = None) -> list[dict]:
     """One label per room of the scan, from the room's own walls. Nothing here is assumed except that the
-    outer wall is glazed (the scan doesn't mark windows), and each label says so."""
+    outer wall is glazed (the scan doesn't mark windows), and each label says so.
+    seen = {room id: {"type", "evidence"}} from the vision walk, if there was one."""
     reach = plate.difference(plate.buffer(-C.BASE_DEPTH_FT))            # the part of the floor within 36 ft of the outline
     along_outline = plate.exterior.buffer(OUTER_WALL_FT)
     labels = []
-    for scan_type, room in _room_polygons(model):
-        if room.area < ROOM_MIN_SF or (scan_type or "").lower() == "void":
-            continue                                                    # Matterport's "Void" is a hole, not a room
+    for room_id, scan_type, room in rooms_to_label(model):
         on_outer_wall = room.exterior.intersection(along_outline).length >= OUTER_WALL_MIN_FT
         share = min(1.0, room.intersection(reach).area / room.area)
         in_reach = "all of it" if share >= 0.995 else f"{share:.0%} of it"
@@ -73,11 +75,19 @@ def room_labels(model: dict, plate, height_m: float) -> list[dict]:
                  **_spot(room.representative_point(), height_m, plate)}
         if not on_outer_wall:
             label["tone"] = "interior"                                  # drawn in its own color, in the tour and the panel
+        look = (seen or {}).get(room_id)
+        if look:
+            label["walked"] = True
+            if look["type"] != "Unclear":
+                label["seen"] = {"type": look["type"], "evidence": look["evidence"]}
+                because = f" ({look['evidence']})" if look["evidence"] else ""
+                label["detail"] += (f" Room type seen by an AI model in this room's panorama: {look['type']}{because}. "
+                                    "Not confirmed by a person.")
         labels.append(label)
     return labels
 
 
-def floor_labels(model: dict, typical_floor_sf: float | None = None) -> dict:
+def floor_labels(model: dict, typical_floor_sf: float | None = None, seen: dict | None = None) -> dict:
     """Labels for one scanned floor. Returns {"labels": [...], "coverage": share or None, "reason": why there are none},
     plus "rooms" (one label per room) and "room_summary" (how many, and how many Matterport gives a type)."""
     outline = floor_outline(model)
@@ -134,10 +144,14 @@ def floor_labels(model: dict, typical_floor_sf: float | None = None) -> dict:
         **_spot(homes_spot.representative_point(), height_m, plate),
     })
     try:
-        rooms = room_labels(model, plate, height_m)
+        rooms = room_labels(model, plate, height_m, seen)
     except ShapelyError:
         rooms = []                                   # a room shape we can't measure must not cost the floor its labels
     interior = sum(room.get("tone") == "interior" for room in rooms)
+    types = Counter(room["seen"]["type"] for room in rooms if room.get("seen"))
     summary = {"total": len(rooms), "outer_wall": len(rooms) - interior, "interior": interior,
-               "typed": sum(room.pop("typed") for room in rooms)}
+               "typed": sum(room.pop("typed") for room in rooms),
+               "walked": sum(room.pop("walked", False) for room in rooms),        # rooms the vision model looked at
+               "seen": dict(types.most_common()),                                 # room types it saw, most common first
+               "amenities": {name: count for name, count in types.most_common() if name in AMENITIES}}
     return {"labels": labels, "coverage": coverage, "reason": None, "rooms": rooms, "room_summary": summary}

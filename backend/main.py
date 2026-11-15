@@ -19,6 +19,7 @@ from backend.annotations import floor_labels
 from backend.data_sources import has_map_location, indicative_map_square
 from backend.pipeline import ROOT, WORK_DIR, analyze, load_result
 from backend.redact import protected_values, redact
+from backend.tools import room_vision
 from backend.tools.verifier import verify
 
 load_dotenv()
@@ -171,7 +172,7 @@ def building_labels(building_id: str):
     for scan in scans:
         model = matterport.load_floor(scan["model_id"]) if scan["full_floor"] else None
         if model:
-            out = floor_labels(model, b.get("typical_floor_sf"))
+            out = floor_labels(model, b.get("typical_floor_sf"), room_vision.load(scan["model_id"]))
             if out["labels"]:
                 return {"model_id": scan["model_id"], "frame": "Matterport model coordinates, metres, z up",
                         "panos": [{"id": p["id"], "position": p["position"]} for p in model.get("panoLocations", []) if p.get("id") and p.get("position")], **out}

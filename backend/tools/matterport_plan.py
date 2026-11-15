@@ -27,14 +27,15 @@ CORE_WORDS = ("void", "elevator", "stair", "restroom")
 WALL_GAP_FT = 1.0              # slivers thinner than two of these are wall thickness, not space
 MIN_CORE_PART_SF = 100.0       # smaller unscanned pieces are columns and risers (guess)
 CORE_SHARE_RANGE = (0.05, 0.40)   # outside this share of the plate, the scan isn't showing us a core (guess)
+ROOM_MIN_SF = 25.0             # smaller closed shapes are columns and shafts, not rooms to label (guess)
 
 
 def _is_core_label(label: str | None) -> bool:
     return bool(label) and any(word in label.lower() for word in CORE_WORDS)
 
 
-def _room_polygons(model: dict) -> list[tuple[str | None, Polygon]]:
-    """Each room on the scanned floor as (label, polygon in feet), built from the room's own wall edges."""
+def rooms_of(model: dict) -> list[tuple[str, str | None, Polygon]]:
+    """Each room on the scanned floor as (id, label, polygon in feet), built from the room's own wall edges."""
     level = model["floors"][0]
     points = {v["id"]: (v["position"]["x"] * FT_PER_M, v["position"]["y"] * FT_PER_M) for v in level["vertices"]}
     walls = {}
@@ -52,8 +53,19 @@ def _room_polygons(model: dict) -> list[tuple[str | None, Polygon]]:
         if faces:
             labels = room.get("classifications") or []
             # The biggest face is the room itself; smaller ones are holes inside it (columns, shafts).
-            rooms.append((labels[0]["label"] if labels else None, max(faces, key=lambda f: f.area)))
+            rooms.append((room.get("id"), labels[0]["label"] if labels else None, max(faces, key=lambda f: f.area)))
     return rooms
+
+
+def _room_polygons(model: dict) -> list[tuple[str | None, Polygon]]:
+    """The same rooms as (label, polygon in feet): what the plate and the core are worked out from."""
+    return [(label, polygon) for _, label, polygon in rooms_of(model)]
+
+
+def rooms_to_label(model: dict) -> list[tuple[str, str | None, Polygon]]:
+    """The rooms that get a label of their own: not Matterport's "Void" (a hole, not a room) and not column-sized."""
+    return [(room_id, label, polygon) for room_id, label, polygon in rooms_of(model)
+            if polygon.area >= ROOM_MIN_SF and (label or "").lower() != "void"]
 
 
 def plate_and_core(model: dict) -> tuple[Polygon | None, BaseGeometry | None]:

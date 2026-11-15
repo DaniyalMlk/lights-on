@@ -45,6 +45,8 @@ python -m scripts.run_validation     # pre-registered checks -> work/proof.json 
 
 The agent needs `LIGHTS_ON_MODEL` in `.env` plus the matching LangChain provider package (examples in `.env.example`). Without it, the Agent tab replays the last recorded run and says so. `python -m scripts.record_traces` records one run per building.
 
+`python -m scripts.walk_scan "<building name>" --limit 5` walks a building's saved floor scan room by room: the model in `LIGHTS_ON_MODEL` looks at one panorama per room and names the room's type from a fixed list, and the app then shows the types and counts the amenities under "Every room, labeled". It sends panorama photos to that model, so it only runs with `COSTAR_LLM_OK=yes`, and it needs a model that reads images. Each such label says it was seen by a model and not confirmed by a person.
+
 ## Sponsor data rules
 
 The CoStar, Matterport and Vexcel data is licensed for the event only. It lives in `data/` and `work/`, which git ignores, and CoStar's schema (column names) stays out of the code. After the event ends (Sun Nov 15, 4:00 pm) every copy is deleted:
