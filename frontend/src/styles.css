@@ -429,7 +429,9 @@ input[type="checkbox"] { accent-color: var(--lamp); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
 @media (min-width: 861px) {
-  .stage[data-compare-wide="true"] { --panel: clamp(444px, 43vw, 700px); }
+  .side { transition: width 280ms var(--ease); }
+  .stage[data-comparing="true"] { --panel: clamp(388px, 29vw, 440px); }
+  .stage[data-compare-wide="true"] { --panel: clamp(404px, 38.7vw, 630px); }
 }
 .compare-pair, .compare-metric { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
 .catalog-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -460,3 +462,7 @@ input[type="checkbox"] { accent-color: var(--lamp); }
 .stage[data-comparing="true"] .pin { width: 26px; justify-content: center; padding: 0; }
 .stage[data-comparing="true"] .pin span { display: none; }
 .stage[data-comparing="true"] .pin:not([data-slot])::before { display: block; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .compare-metric dd { animation: row-in 280ms var(--ease) both; transition: background-color 160ms var(--ease); }
+}

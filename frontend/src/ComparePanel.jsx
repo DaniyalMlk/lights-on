@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { money } from "./format.js";
 
 const dollars = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format;
@@ -51,33 +51,41 @@ function Picker({ index, name, editing, options, onEdit, onChoose }) {
   </div>;
 }
 
-function Metric({ label, values, format, notes, advantage }) {
-  const comparable = values.every(Number.isFinite) && values[0] !== values[1];
-  const lower = values[0] < values[1] ? 0 : 1;
+const ColumnKeys = createContext([]);
+const scenarioNames = { downside: "Downside", base: "Base", upside: "Upside" };
+
+function Metric({ label, values, format, notes, advantage, difference }) {
+  const keys = useContext(ColumnKeys);
+  const displayed = values.map(v => Number.isFinite(v) ? format(v) : "Unavailable");
   let winner = -1;
-  if (comparable && advantage === "cost") winner = lower;
-  if (comparable && advantage === "gap" && values[1 - lower] > 0) winner = 1 - lower;
-  const delta = winner >= 0 ? dollars(Math.abs(values[0] - values[1])) : "";
+  if (advantage && values.every(Number.isFinite) && displayed[0] !== displayed[1]) {
+    const lower = values[0] < values[1] ? 0 : 1;
+    winner = advantage === "lower" ? lower : 1 - lower;
+  }
+  const shownNumber = text => Number(text.replace("−", "-").replace(/[^0-9.-]/g, ""));
+  const gap = winner >= 0 ? Math.abs(shownNumber(displayed[0]) - shownNumber(displayed[1])) : 0;
+  const delta = format === percent ? `${gap} percentage points` : format(format === money ? gap * 1e6 : gap);
   return <div className="compare-metric">
     <dt>{label}</dt>
-    {values.map((value, i) => <dd key={i} aria-label={`Building ${letter(i)}: ${label}`} data-better={winner === i}>
-      {Number.isFinite(value) ? format(value) : "Unavailable"}
+    {values.map((value, i) => <dd key={keys[i]} aria-label={`Building ${letter(i)}: ${label}`} data-better={winner === i}>
+      {displayed[i]}
       {notes?.[i] && <small>{notes[i]}</small>}
-      {winner === i && <small>{delta} {advantage === "cost" ? "less per unit" : "more headroom"}</small>}
+      {winner === i && <small>{delta} {difference ?? (advantage === "lower" ? "less" : "more")}</small>}
     </dd>)}
   </div>;
 }
 
 export default function ComparePanel({ towers, pair, slot, onSlot, onChoose, incentive }) {
+  const [scenario, setScenario] = useState("base");
   const [depth, setDepth] = useState(36);
   const a = useBuilding(pair[0]);
   const b = useBuilding(pair[1]);
   const records = [a, b];
   const count = pair.filter(Boolean).length;
   const options = towers.map(f => f.properties);
-  const base = records.map(r => r?.econ?.cases?.base);
-  const costs = base.map(c => c?.cost);
-  const price = base.map((c, i) => {
+  const cases = records.map(r => r?.econ?.cases?.[scenario]);
+  const costs = cases.map(c => c?.cost);
+  const price = cases.map((c, i) => {
     const gfa = records[i]?.econ?.inputs?.gfa;
     return Number.isFinite(c?.residual) && Number.isFinite(gfa) ? c.residual + incentive * gfa : null;
   });
@@ -89,25 +97,27 @@ export default function ComparePanel({ towers, pair, slot, onSlot, onChoose, inc
       name={options.find(p => p.id === id)?.name} editing={slot === i}
       options={options.filter(p => !pair.includes(p.id))} onEdit={onSlot} onChoose={onChoose} />)}</div>
     {slot != null && <p className="fine" role="status">Select Building {letter(slot)} on the map or from the list.</p>}
-    {count === 2 && <>
-      <section className="block"><h3>Financial comparison</h3>
-        <p className="fine">Base case · 36 ft layout. Purchase capacity includes the ${incentive}/SF hypothetical incentive.</p>
+    {count === 2 && <ColumnKeys.Provider value={pair.map((id, i) => id + (records[i] === undefined ? "-loading" : "-ready"))}>
+      <section className="block"><div className="compare-section-head"><h3>Financial comparison</h3>
+        <div className="segmented" role="group" aria-label="Financial scenario">{Object.entries(scenarioNames).map(([key, name]) =>
+          <button key={key} aria-pressed={scenario === key} onClick={() => setScenario(key)}>{name}</button>)}</div></div>
+        <p className="fine">{scenarioNames[scenario]} case · 36 ft layout. Purchase capacity includes the ${incentive}/SF hypothetical incentive.</p>
         {records.includes(undefined) && <p className="fine" role="status">Loading building analysis…</p>}
         <dl>
-          <Metric label="Total conversion cost" values={costs} format={money} />
+          <Metric label="Total conversion cost" values={costs} advantage="lower" format={money} />
           <Metric label="Conversion cost per potential home" values={costs.map((cost, i) => {
             const g = records[i]?.geometry;
             const homes = g?.by_depth?.[g.base_depth_ft ?? 36]?.homes;
             return Number.isFinite(cost) && homes > 0 ? cost / homes : null;
-          })} format={dollars} advantage="cost" />
-          <Metric label="Effective apartment rent · per SF / month" values={base.map(c => c?.effective_rent_psf_month)}
+          })} format={dollars} advantage="lower" difference="less per unit" />
+          <Metric advantage="higher" label="Effective apartment rent · per SF / month" values={cases.map(c => c?.effective_rent_psf_month)}
             notes={records.map(r => r?.building?.rent_comps > 0 ? `Based on ${r.building.rent_comps} apartment comparables` : null)}
             format={v => `$${v.toFixed(2)}`} />
-          <Metric label="Supported purchase price (residual)" values={price} format={money} />
+          <Metric label="Supported purchase price (residual)" values={price} advantage="higher" format={money} />
           <Metric label="Reference value" values={refs} notes={records.map(r => r?.building?.reference_source ??
             (r?.building?.assessed_value != null ? "Assessed value" : null))} format={money} />
           <Metric label="Purchase capacity minus reference value" values={price.map((v, i) =>
-            Number.isFinite(v) && Number.isFinite(refs[i]) ? v - refs[i] : null)} format={money} advantage="gap" />
+            Number.isFinite(v) && Number.isFinite(refs[i]) ? v - refs[i] : null)} format={money} advantage="higher" difference="more headroom" />
         </dl>
       </section>
       <section className="block"><div className="compare-section-head"><h3>Floor layout</h3>
@@ -115,10 +125,10 @@ export default function ComparePanel({ towers, pair, slot, onSlot, onChoose, inc
           <button key={d} aria-pressed={depth === d} onClick={() => setDepth(d)}>{d} ft</button>)}</div></div>
         <dl>
           <Metric label="Vacancy share" values={records.map(r => r?.building?.vacancy)} format={percent} />
-          <Metric label={`Within ${depth} ft of facade · floor outside core`} values={layouts.map(l => l?.daylight_share)} format={percent} />
-          <Metric label="Potential homes" values={layouts.map(l => l?.homes)} format={v => v.toLocaleString()} />
+          <Metric advantage="higher" label={`Within ${depth} ft of facade · floor outside core`} values={layouts.map(l => l?.daylight_share)} format={percent} />
+          <Metric advantage="higher" label="Potential homes" values={layouts.map(l => l?.homes)} format={v => v.toLocaleString("en-US")} />
         </dl>
       </section>
-    </>}
+    </ColumnKeys.Provider>}
   </article>;
 }
