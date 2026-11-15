@@ -178,7 +178,9 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
     <header className="scan-head">
       <div>
         <h3>3D tour</h3>
-        <p className="fine">{scan.tour_full_floor ? "A scanned floor, not measured yet: no labels."
+        <p className="fine">{scan.tour_matched_by === "distance"
+          ? "A floor scanned at this address. Matterport's list does not link it to the building, so it is not measured: no labels."
+          : scan.tour_full_floor ? "A scanned floor, not measured yet: no labels."
           : "A scan of part of a floor: too small to measure, so no labels."}</p>
       </div>
       <button className="pill" onClick={() => setOpen(!open)}>

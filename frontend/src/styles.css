@@ -197,7 +197,7 @@ input[type="range"].quiet::-webkit-slider-thumb { width: 14px; height: 14px; mar
 .catalog-head { display: flex; flex-direction: column; gap: 12px; padding: 22px 22px 10px; }
 .catalog-head h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
 .catalog-head h2 small { font-size: 12px; font-weight: 400; letter-spacing: 0; color: var(--text-3); }
-.sort { display: flex; gap: 4px; }
+.sort { display: flex; flex-wrap: wrap; gap: 4px; }
 .sort button { border: 0; padding: 5px 11px; border-radius: 999px; background: none; color: var(--text-3); font-size: 12.5px; font-weight: 500; transition: background 160ms var(--ease), color 160ms var(--ease); }
 .sort button:hover { color: var(--text); }
 .sort button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); }

@@ -14,6 +14,7 @@ const SORTS = {
   cases: { name: "Test cases", order: (a, b) => caseRank(a) - caseRank(b) },
   homes: { name: "Most homes", order: (a, b) => (b.properties.homes ?? -1) - (a.properties.homes ?? -1) },
   gap: { name: "Closest to paying", order: (a, b) => gapRank(a) - gapRank(b) },
+  tour: { name: "3D tour", order: (a, b) => Number(Boolean(b.properties.tour)) - Number(Boolean(a.properties.tour)) },
 };
 
 function status(p) {
@@ -30,7 +31,7 @@ export default function BuildingList({ features, selectedId, hoveredId, onSelect
     <header className="catalog-head">
       <h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
       <div className="sort" role="group" aria-label="Sort towers">
-        {Object.entries(SORTS).map(([key, { name }]) =>
+        {Object.entries(SORTS).filter(([key]) => key !== "tour" || rows.some(f => f.properties.tour)).map(([key, { name }]) =>
           <button key={key} aria-pressed={sort === key} onClick={() => setSort(key)}>{name}</button>)}
       </div>
     </header>
@@ -45,7 +46,7 @@ export default function BuildingList({ features, selectedId, hoveredId, onSelect
             <span className="dot" aria-hidden="true" />
             <span className="row-main">
               <strong>{p.name}</strong>
-              <small>{status(p)}</small>
+              <small>{status(p)}{p.tour ? " · 3D tour" : ""}</small>
             </span>
             <span className="row-homes">{p.homes == null ? "–" : p.homes.toLocaleString()}<small>homes</small></span>
           </button>

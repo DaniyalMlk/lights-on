@@ -104,3 +104,61 @@ def test_a_scan_that_is_not_measured_still_offers_its_tour(monkeypatch):
 
     monkeypatch.setattr(matterport, "load_index", lambda: [nearby])
     assert client.get("/api/buildings/777/labels").json()["tour_model_id"] is None
+
+
+def test_an_unlinked_full_floor_at_the_address_is_offered_as_a_nearby_tour(monkeypatch):
+    """Matterport's list leaves some office floors without a building id. A full floor scanned at this address and
+    filed under no building is offered as a tour, and says it was matched by location. A neighbour's scan never is."""
+    building = {"id": "777", "lat": 29.7535, "lon": -95.3693, "typical_floor_sf": FULL_FLOOR_SF}
+    unlinked_floor = {"sid": "FLOOR53", "name": "Level 53", "costar_property_id": "", "lat": "29.7535", "lon": "-95.3693",
+                      "pano_count": "115", "room_count": "5"}
+    unlinked_suite = {"sid": "SUITE9", "name": "Suite 900", "costar_property_id": "", "lat": "29.7535", "lon": "-95.3693",
+                      "pano_count": "300", "room_count": "9"}
+    neighbours_floor = {"sid": "NEXTDOOR", "name": "12th Floor", "costar_property_id": "999", "lat": "29.7536",
+                        "lon": "-95.3694", "pano_count": "80", "room_count": "4"}
+    own_suite = {"sid": "OWN1", "name": "Suite 400", "costar_property_id": "777", "lat": "29.7535", "lon": "-95.3693",
+                 "pano_count": "12", "room_count": "3"}
+    monkeypatch.setattr(main, "BUILDINGS", {"777": building})
+    monkeypatch.setattr(matterport, "load_floor", lambda model_id: None)
+    client = TestClient(main.app)
+
+    monkeypatch.setattr(matterport, "load_index", lambda: [unlinked_suite, neighbours_floor, unlinked_floor])
+    out = client.get("/api/buildings/777/labels").json()
+    assert out["tour_model_id"] == "FLOOR53" and out["tour_matched_by"] == "distance" and out["tour_full_floor"] is True
+    assert out["labels"] == [] and out["model_id"] is None                     # offered to walk through, never measured
+
+    monkeypatch.setattr(matterport, "load_index", lambda: [unlinked_floor, own_suite])
+    out = client.get("/api/buildings/777/labels").json()
+    assert out["tour_model_id"] == "OWN1" and out["tour_matched_by"] == "costar_id"      # the building's own scan wins
+
+    monkeypatch.setattr(matterport, "load_index", lambda: [unlinked_suite, neighbours_floor])
+    out = client.get("/api/buildings/777/labels").json()
+    assert out["tour_model_id"] is None and out["tour_matched_by"] is None
+
+
+def test_building_list_says_which_buildings_have_a_tour(monkeypatch, tmp_path):
+    """The list marks every building whose 3D tour can be opened, so the tours are not hidden one click deep."""
+    from backend.costar_kit import square_footprint
+
+    def tower(building_id, lat):
+        return {"id": building_id, "name": building_id, "lat": lat, "lon": -95.3693, "stories": 20, "vacancy": 0.6,
+                "typical_floor_sf": 20000.0, "footprint": square_footprint(lat, -95.3693, 20000.0)}
+
+    index = [{"sid": "OWN", "name": "Suite 400", "costar_property_id": "A", "lat": "29.7535", "lon": "-95.3693",
+              "pano_count": "12", "room_count": "3"},
+             {"sid": "LEVEL9", "name": "Level 9", "costar_property_id": "", "lat": "29.7600", "lon": "-95.3693",
+              "pano_count": "90", "room_count": "4"}]
+    monkeypatch.setattr("backend.pipeline.WORK_DIR", tmp_path)
+    monkeypatch.setattr(main, "BUILDINGS", {"A": tower("A", 29.7535), "B": tower("B", 29.7600), "C": tower("C", 29.7700)})
+    monkeypatch.setattr(main, "MAP_ONLY", [])
+    monkeypatch.setattr(matterport, "load_index", lambda: index)
+    monkeypatch.setattr(matterport, "load_floor", lambda model_id: None)
+    monkeypatch.setenv("MATTERPORT_SDK_KEY", "sdk-test")
+    client = TestClient(main.app)
+
+    def tours():
+        return {f["properties"]["id"]: f["properties"]["tour"] for f in client.get("/api/buildings").json()["features"]}
+
+    assert tours() == {"A": "costar_id", "B": "distance", "C": None}     # its own scan, a floor at the address, none
+    monkeypatch.delenv("MATTERPORT_SDK_KEY")
+    assert tours() == {"A": None, "B": None, "C": None}                  # no key, no tour to open: don't promise one
