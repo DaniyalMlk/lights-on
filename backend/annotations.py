@@ -24,7 +24,7 @@ from backend import config as C
 from backend.matterport import floor_outline
 from backend.tools.geometry import analyze_plate
 from backend.tools.layout import layout_units, plan_xy
-from backend.tools.matterport_plan import rooms_to_label
+from backend.tools.matterport_plan import plate_and_core, rooms_to_label
 from backend.tools.room_vision import AMENITIES
 
 FT_PER_M = 3.28084
@@ -103,7 +103,7 @@ def floor_labels(model: dict, typical_floor_sf: float | None = None, seen: dict 
     heights = [p["position"]["z"] for p in model.get("panoLocations") or []]
     height_m = statistics.median(heights) if heights else DEFAULT_HEIGHT_M
 
-    geo = analyze_plate(plate)
+    geo = analyze_plate(plate, plate_and_core(model)[1])      # the scan's own core if it shows one, like the home count
     base = geo["by_depth"][C.BASE_DEPTH_FT]
     layout = layout_units(plate, base.units, base.effective_depth_ft, geo["core"])
     homes = [u for u in layout["units"] if u["homes"]]
@@ -123,13 +123,22 @@ def floor_labels(model: dict, typical_floor_sf: float | None = None, seen: dict 
             "detail": f"More than {C.BASE_DEPTH_FT} ft from any window, outside the corridor and core: no bedrooms here.",
             **_spot(_largest(base.dark).representative_point(), height_m, plate),
         })
-    labels.append({
-        "kind": "assumed",
-        "title": "Core: assumed, not in the scan",
-        "detail": f"Elevators and stairs aren't in the scan's walls. We assume a centered core of "
-                  f"{C.CORE_SHARE:.0%} of the floor; a person should confirm it.",
-        **_spot(geo["core"].centroid, height_m, plate),
-    })
+    if geo["core_source"] == "matterport":
+        labels.append({
+            "kind": "measured",
+            "title": f"Core: {geo['core_sf'] / plate.area:.0%} of the floor, found in the scan",
+            "detail": "The part inside the walls that no scanned room covers, or that the scan names as elevators or "
+                      "stairs. Measured from the scan; a person should confirm it.",
+            **_spot(geo["core"].representative_point(), height_m, plate),
+        })
+    else:
+        labels.append({
+            "kind": "assumed",
+            "title": "Core: assumed, not in the scan",
+            "detail": f"Elevators and stairs aren't in the scan's walls. We assume a centered core of "
+                      f"{C.CORE_SHARE:.0%} of the floor; a person should confirm it.",
+            **_spot(geo["core"].centroid, height_m, plate),
+        })
     labels.append({
         "kind": "checked" if coverage is not None else "measured",
         "title": f"Floor: {plate.area:,.0f} sf inside the walls",

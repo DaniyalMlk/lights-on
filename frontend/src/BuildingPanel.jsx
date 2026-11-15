@@ -57,7 +57,7 @@ export default function BuildingPanel({ buildingId, selected, incentive, focus, 
   const layers = [
     ["CoStar", building.synthetic ? "sample data" : "record", !building.synthetic],
     ["Vexcel", building.footprint_origin === "vexcel" ? "outline" : "not used", building.footprint_origin === "vexcel"],
-    ["Matterport", geometry.plate_source === "matterport_scan" ? "floor scan" : "no scan", geometry.plate_source === "matterport_scan"],
+    ["Matterport", geometry.plate_source !== "matterport_scan" ? "no scan" : geometry.scan_matched_by === "distance" ? "floor scan at this address" : "floor scan", geometry.plate_source === "matterport_scan"],
   ];
   const verdict = selected?.gated_out ? "Filtered out by vacancy" : selected?.short ?? "–";
 

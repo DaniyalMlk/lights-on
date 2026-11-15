@@ -153,7 +153,9 @@ def test_room_labels_pass_on_matterports_own_type_and_count_the_gap():
 def test_room_labels_are_the_same_every_time_and_never_change_the_floor_labels():
     assert floor_labels(GRID, GRID_SF) == floor_labels(GRID, GRID_SF)
     no_rooms = dict(GRID, rooms=[])
-    assert floor_labels(no_rooms, GRID_SF)["labels"] == floor_labels(GRID, GRID_SF)["labels"]
+    # Rooms change the floor labels in one way only: through a core the scan shows (here the corner room typed "Void")
+    no_core = dict(GRID, rooms=[dict(room, classifications=[]) for room in GRID["rooms"]])
+    assert floor_labels(no_rooms, GRID_SF)["labels"] == floor_labels(no_core, GRID_SF)["labels"]
     assert floor_labels(no_rooms, GRID_SF)["rooms"] == []
     assert floor_labels(GRID, GRID_SF * 3).get("rooms", []) == []       # a suite: no floor labels, so no room labels
 
@@ -249,3 +251,13 @@ def test_building_list_says_which_buildings_have_a_tour(monkeypatch, tmp_path):
     assert tours() == {"A": "costar_id", "B": "distance", "C": None}     # its own scan, a floor at the address, none
     monkeypatch.delenv("MATTERPORT_SDK_KEY")
     assert tours() == {"A": None, "B": None, "C": None}                  # no key, no tour to open: don't promise one
+
+
+def test_a_core_the_scan_shows_is_labelled_as_measured_not_assumed():
+    """Made-up floor: two offices with an elevator room between them. The labels use that core, like the home count."""
+    from tests.test_matterport_plan import THREE_ROOMS
+    labels = floor_labels(THREE_ROOMS)["labels"]
+    core = [label for label in labels if label["title"].startswith("Core")]
+    assert len(core) == 1 and core[0]["kind"] == "measured" and "found in the scan" in core[0]["title"]
+    assert not any(label["kind"] == "assumed" for label in labels)
+    assert " sf" not in core[0]["title"]                      # a share of the floor, never an area

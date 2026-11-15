@@ -190,7 +190,8 @@ def building_labels(building_id: str):
         if model:
             out = floor_labels(model, b.get("typical_floor_sf"), room_vision.load(scan["model_id"]))
             if out["labels"]:
-                return {"model_id": scan["model_id"], "frame": "Matterport model coordinates, metres, z up",
+                return {"model_id": scan["model_id"], "matched_by": scan["matched_by"],
+                        "frame": "Matterport model coordinates, metres, z up",
                         "panos": [{"id": p["id"], "position": p["position"]} for p in model.get("panoLocations", []) if p.get("id") and p.get("position")], **out}
             reason = out["reason"]
     # No measured floor, but the building may still have a tour to walk through (see tour_scan for which scan).

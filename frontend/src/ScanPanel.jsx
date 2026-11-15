@@ -200,7 +200,8 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
     <header className="scan-head">
       <div>
         <h3>Labeled in 3D, automatically</h3>
-        <p className="fine">{scan.labels.length} labels, each with how we know it.</p>
+        <p className="fine">{scan.labels.length} labels, each with how we know it.
+          {scan.matched_by === "distance" && " Matterport's list files this scan at the building's address, not under its id."}</p>
       </div>
       {key && <button className="pill" onClick={() => setOpen(!open)}>
         {open ? "Close tour" : "Open 3D tour"}<span className="pill-icon" aria-hidden="true">{open ? "×" : "↗"}</span></button>}

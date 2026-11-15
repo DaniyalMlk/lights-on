@@ -25,7 +25,9 @@ export default function StudyDetails({data, depth}) {
   return <>
     <details className="block checks">
       <summary>Geometry and building checks</summary>
-      <p className="fine">Plate: {b.footprint_source || "building footprint"}. Assumption: a centered core takes 18% of the floor plate.</p>
+      <p className="fine">Plate: {b.footprint_source || "building footprint"}.
+        {g.scan_matched_by === "distance" && " The scan is filed at this address in Matterport's list, not under the building's id."}
+        {g.core_source === "matterport" ? " Core: the part of the scanned floor that no room covers." : " Assumption: a centered core takes 18% of the floor plate."}</p>
       <ul className="check-list">
         <li><span>Podium</span><b>{ratio == null ? "floor area unavailable" : ratio.toFixed(2) + (ratio < .8 ? " · flagged below 0.80" : " · fine (0.80 or above)")}</b></li>
         <li><span>Dark area at 36 ft</span><b>{(100*dark).toFixed(1)}%{g.deep_plate && " · deep plate (dark band over 12 ft)"}</b></li>
