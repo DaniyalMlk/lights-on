@@ -69,6 +69,7 @@ const FALL_MS = 350;          // and go out faster
 const ORBIT_DEG_PER_S = 9;    // one full turn in 40 seconds
 const CAMERA = { pitch: 60, bearing: -24 };
 const MAX_PITCH = 78;
+const DRIFT_DEG_PER_MS = 360 / 240000;   // the introduction's background turns once in four minutes
 const ROOF_M = 1;              // thickness of the plain roof slab on each tower; the floor plan stands on it
 const TILT_ZOOM = 0.7;         // the fit is worked out for a flat map; tilted, the towers take less height, so we go closer
 const HOUSTON = [[-95.75, 29.5], [-95.0, 30.0]];   // the view never leaves the city
@@ -232,8 +233,8 @@ function towerView(map, feature, rightInset) {
            metersPerPixel: Math.max(metersPerPixelAt(19.4, at.lat), Math.min(metersPerPixelAt(16.8, at.lat), metersPerPixel)) };
 }
 
-export default function CityMap({ data, preview = false, pair, selectedId, hoveredId, rightInset, bottomInset, mode, plate, marks, focus,
-                                  onSelect, onHover, onGrab, onMode, onMark }) {
+export default function CityMap({ data, preview = false, drift = false, leftInset = 0, pair, selectedId, hoveredId, rightInset, bottomInset,
+                                  mode, plate, marks, focus, onSelect, onHover, onGrab, onMode, onMark }) {
   const container = useRef(null);
   const map = useRef(null);
   const pins = useRef(new Map());
@@ -297,9 +298,9 @@ export default function CityMap({ data, preview = false, pair, selectedId, hover
       instance = new MapLibreMap({
         container: container.current,
         style,
-        center: preview ? [-95.3665, 29.7585] : [-95.366, 29.757],
+        center: preview ? [-95.3655, 29.7578] : [-95.366, 29.757],
         interactive: !preview,
-        zoom: preview ? 15.25 : 15,
+        zoom: preview ? 15.35 : 15,
         maxPitch: MAX_PITCH,
         minZoom: 11.5,
         maxBounds: HOUSTON,
@@ -352,6 +353,24 @@ export default function CityMap({ data, preview = false, pair, selectedId, hover
     instance.setPadding({ top: 0, bottom: 0, left: 0, right: rightInset });
     if (!latest.current.active.length) glide(overview(instance, latest.current), 0);
   }, [rightInset, bottomInset, ready]);
+
+  // As the introduction's background (preview): downtown stays clear of the text on the left,
+  // and the camera circles it slowly while drift is on
+  useEffect(() => {
+    const instance = map.current;
+    if (!preview || !ready || !instance) return;
+    instance.setPadding({ top: 0, bottom: 0, left: leftInset, right: 0 });
+    if (!drift || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let request = 0;
+    let last = performance.now();
+    function turn(now) {
+      instance.setBearing(instance.getBearing() + Math.min(50, now - last) * DRIFT_DEG_PER_MS);
+      last = now;
+      request = requestAnimationFrame(turn);
+    }
+    request = requestAnimationFrame(turn);
+    return () => cancelAnimationFrame(request);
+  }, [preview, ready, drift, leftInset]);
 
   // Lights climb a tower when it starts to pay, and go out when it stops. Pins follow at once:
   // lit towers get a full pin with their home count, the rest a small dot (Airbnb's two tiers).

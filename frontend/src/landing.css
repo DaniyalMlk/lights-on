@@ -1,71 +1,147 @@
-.landing {--lp-gutter:max(10.5vw,calc((100% - 1320px)/2));background:#101821;overflow:clip;color:#f1f0e9}
-.lp-nav,.lp-hero,.lp-section {padding-inline:var(--lp-gutter)}
-.lp-nav {height:74px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--line);position:relative;z-index:1}
-.lp-actions {display:flex;gap:28px;align-items:center}
-.landing a {text-decoration:none;color:inherit}
-.lp-hero {min-height:clamp(590px,77vh,830px);display:flex;align-items:center;position:relative;isolation:isolate;border-bottom:1px solid var(--line)}
-.lp-city {position:absolute;inset:0 -3% 0 49%;opacity:.63;z-index:-1;mask-image:radial-gradient(ellipse 73% 62% at 63% 48%,#000 26%,rgba(0,0,0,.88) 49%,transparent 98%);background:radial-gradient(ellipse at 62% 52%,#26343c,transparent 66%)}
-.city-drawing {width:100%;height:100%;display:block}
-.lp-caption,.lp-kicker,.lp-step>small,.lp-study figcaption {font:500 11px/1.5 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--lamp)}
-.lp-caption {position:absolute;right:5%;bottom:4%;color:#9ba9b4;font-size:9px}
-.lp-intro {width:min(48vw,680px);padding-block:54px}
-.lp-intro h1 {font-size:clamp(27px,4.75vw,72px);font-weight:510;letter-spacing:-.078em;line-height:1.03;margin:28px 0}
-.lp-intro em {font-style:normal;color:var(--lamp)}
-.lp-intro>p:not(.lp-kicker),.lp-desc,.lp-step p,.lp-assumptions p {color:#b4bfcd;font-size:16px;line-height:1.6}
-.lp-intro>p {max-width:395px}
-.lp-actions {margin-top:28px;flex-wrap:wrap;gap:20px}
-.lp-button {display:inline-flex;align-items:center;gap:20px;background:var(--lamp);color:var(--lamp-ink)!important;border-radius:30px;padding:12px 20px;font-weight:600}
-.lp-button:hover {background:#ffce7b}.lp-link:hover {color:var(--lamp)}
-.lp-section {padding-block:clamp(88px,9.8vw,166px);border-bottom:1px solid var(--line)}
-.lp-section h2 {font-size:clamp(32px,4.3vw,66px);line-height:1.06;font-weight:500;letter-spacing:-.058em;max-width:17em;margin:18px 0 24px}
-.lp-desc {max-width:680px}.lp-steps,.lp-study,.lp-pair {display:grid;gap:clamp(24px,2.5vw,44px);margin-top:52px}
-.lp-steps {grid-template-columns:repeat(3,1fr)}.lp-mini,.lp-study figure,.lp-pair article {background:#18232d;border:1px solid var(--line);border-radius:16px;overflow:hidden}
-.lp-mini {position:relative;aspect-ratio:9/10;margin-bottom:24px;display:grid;align-items:center;background-image:radial-gradient(#34404a 1px,transparent 1px);background-size:16px 16px}
-.lp-mini .city-drawing {position:absolute;inset:0;height:100%}
-.lp-mini img {position:absolute;inset:0}.lp-mini img,.lp-study figure img{width:100%;height:100%;object-fit:contain;padding:12px}
-.lp-step h3,.lp-pair h3,.lp-assumptions h3 {font-size:22px;letter-spacing:-.035em;margin:7px 0}
-.lp-step p {font-size:14px}.lp-bars {padding:clamp(16px,2vw,36px);display:grid;gap:32px}.lp-bars div {font-size:12px}.lp-bars b {display:block;font-size:clamp(21px,2.3vw,37px);font-weight:500;letter-spacing:-.045em}.lp-bars i {display:block;height:4px;background:var(--lamp);margin-top:6px}
-.lp-study,.lp-pair {grid-template-columns:1fr 1fr}.lp-study {align-items:center;margin-top:0}
-.lp-study figure {
-  margin:0;padding:clamp(16px,2vw,28px);display:grid;gap:14px;
-  border:1px solid #51606c;background-color:#17212c;
-  background-image:radial-gradient(#394550 1px,transparent 1px);background-size:14px 14px;
-}
-.lp-study figure img {height:clamp(220px,24vw,370px);padding:0}
-.lp-study figcaption {color:var(--text-2)}
-.lp-study dl {margin:16px 0 28px}.lp-study dl div {display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:9px 0}.lp-study dd {font-size:22px}
-.lp-pair article {padding:22px}.lp-pair p {color:var(--text-2)}.lp-pair strong {font-size:28px}.lp-pair small {display:block;margin-top:12px;padding:8px}.lp-pair [data-lit=true]{background:var(--lamp-wash);color:var(--lamp);border-radius:6px}
-.lp-assumptions {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(16px,2vw,32px);margin-top:40px}
-.lp-assumptions article {background:#18232d;border-radius:16px;padding:clamp(22px,2.2vw,36px)}
-.lp-card-number {display:block;margin-bottom:22px;color:#82909b;font-size:clamp(46px,4vw,64px);font-weight:600;line-height:1;letter-spacing:-.055em}
-.lp-assumptions p {margin:10px 0 0}
-@media(prefers-reduced-motion:no-preference){.lp-step.shown,.lp-study.shown{animation:lp-reveal .65s var(--ease) backwards}.lp-step:nth-child(2){animation-delay:.1s}.lp-step:nth-child(3){animation-delay:.2s}@keyframes lp-reveal {from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}}
-@media(max-width:740px){.lp-hero{display:block;padding-bottom:220px}.lp-intro{padding-bottom:6px}.lp-city{inset:auto 0 0;height:230px;left:12%;right:-5%;mask-image:radial-gradient(ellipse 76% 65% at 57% 55%,#000 34%,transparent 100%)}.lp-steps,.lp-study,.lp-assumptions{grid-template-columns:1fr}.lp-pair{gap:8px}.lp-pair article{padding:13px}.lp-pair strong{font-size:22px}.lp-step{width:100%;min-width:0}.lp-intro h1{font-size:clamp(26px,8.9vw,58px)}}
+/* The introduction page (/about). Colors, fonts, the top pill and the plate drawing come from styles.css. */
 
-.lp-intro h1 span {display:block;white-space:nowrap}
-.lp-kicker {font-size:clamp(15px,1.25vw,18px);font-weight:680;letter-spacing:.14em}
-footer.lp-section {display:grid;justify-items:center;text-align:center}
-footer.lp-section h2 {max-width:min(100%,12em);margin:0 auto 20px;text-wrap:balance}
+html:has(.landing) { scroll-behavior: smooth; scroll-padding-top: 88px; }
+/* Every block shares one left and right edge: the gutter, or what centers a 1240px column on a wide screen */
+.landing { --gutter: clamp(24px, 6.5vw, 104px); overflow-x: clip; background: var(--night); }
+.lp-hero, .lp-section, .lp-sources, .lp-end { padding-inline: max(var(--gutter), calc((100% - 1240px) / 2)); }
+.landing a { color: inherit; text-decoration: none; }
 
-footer.lp-section .lp-desc {max-width:min(100%,40ch);margin:0 auto 28px;text-wrap:balance}
-@media(max-width:740px) {
-  .landing {--lp-gutter:clamp(24px,7vw,44px)}
-  .lp-intro {width:100%}
-  .lp-intro h1 span {display:inline;white-space:normal}
-  .lp-intro h1 {max-width:14ch;text-wrap:balance}
+/* Top bar: the same floating pill as on the map, kept in view while the page scrolls */
+.lp-nav { position: fixed; z-index: 20; }
+.lp-nav .lp-nav-open { color: var(--lamp); }
+
+/* Small mono label above a heading; the step number is lamp-colored */
+.lp-eyebrow { font: 500 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
+.lp-eyebrow b { margin-right: 12px; font-weight: 500; color: var(--lamp); }
+
+/* Hero: the live map fills it, the text sits on the left over a soft shade */
+.lp-hero { position: relative; isolation: isolate; display: grid; grid-template-rows: 1fr auto; gap: 40px;
+  min-height: 100dvh; padding-top: 132px; padding-bottom: 26px; }
+.lp-backdrop { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.lp-backdrop::after { content: ""; position: absolute; inset: 0; background:
+  linear-gradient(90deg, var(--night) 4%, rgba(20, 28, 43, 0.8) 30%, rgba(20, 28, 43, 0) 64%),
+  linear-gradient(180deg, var(--night) 0%, rgba(20, 28, 43, 0) 26%, rgba(20, 28, 43, 0) 74%, var(--night) 100%); }
+.hero-live-map { transition: opacity 1200ms var(--ease); }
+
+.lp-hero-text { align-self: center; max-width: 780px; }
+.lp-hero h1 { margin-top: 22px; font-size: clamp(40px, 4.7vw, 78px); font-weight: 560; line-height: 1.02; letter-spacing: -0.05em; text-wrap: balance; }
+.lp-hero h1 em { font-style: normal; color: var(--lamp); }
+.lp-lede { margin-top: 26px; max-width: 31em; font-size: clamp(16px, 1.25vw, 19px); line-height: 1.55; color: var(--text-2); }
+.lp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; margin-top: 36px; }
+
+/* The main button: a lamp-colored pill with the arrow in its own circle */
+.lp-button { display: inline-flex; align-items: center; gap: 16px; padding: 7px 7px 7px 22px; border-radius: 999px;
+  background: var(--lamp); color: var(--lamp-ink) !important; font-size: 15px; font-weight: 600;
+  transition: background 200ms var(--ease), transform 160ms var(--ease); }
+.lp-button span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(43, 29, 5, 0.13); transition: transform 300ms var(--ease); }
+.lp-button:hover { background: #ffd07c; }
+.lp-button:hover span { transform: translate(2px, -2px); }
+.lp-button:active { transform: scale(0.97); }
+.lp-link { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 500; color: var(--text) !important;
+  text-underline-offset: 5px; }
+.lp-link span { color: var(--lamp); transition: transform 300ms var(--ease); }
+.lp-link:hover { text-decoration: underline; text-decoration-color: var(--text-3); }
+.lp-link:hover span { transform: translate(2px, -2px); }
+
+/* The readout under the hero text: the incentive as it plays, and what it lights up */
+.lp-hero-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.lp-readout { width: min(420px, 100%); padding: 16px 18px 15px; border-radius: 18px; background: var(--glass); box-shadow: var(--float);
+  font-variant-numeric: tabular-nums; }
+.lp-readout-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-weight: 500; }
+.lp-readout output { font-size: 20px; font-weight: 600; letter-spacing: -0.03em; }
+.lp-readout output small { margin-left: 2px; font-size: 12.5px; font-weight: 500; color: var(--text-3); }
+.lp-meter { height: 4px; margin: 12px 0 13px; border-radius: 4px; overflow: hidden; background: #2a3650; }
+.lp-meter i { display: block; height: 100%; background: var(--lamp); transform-origin: left; transition: transform 140ms linear; }
+.lp-readout p { display: flex; align-items: baseline; gap: 6px; color: var(--text-2); }
+.lp-readout p b { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; color: var(--lamp); }
+.lp-readout p small { margin-left: auto; font-size: 12.5px; color: var(--text-3); }
+.lp-credit { font-size: 10.5px; color: var(--text-3); white-space: nowrap; }
+
+/* A section: a figure and a few lines of copy, side by side */
+.lp-section { padding-top: clamp(96px, 11vw, 176px); }
+.lp-split { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); align-items: center; gap: clamp(32px, 6vw, 96px); }
+.lp-split.copy-first { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+
+.lp-copy h2, .lp-end h2 { font-weight: 560; letter-spacing: -0.04em; text-wrap: balance; }
+.lp-copy h2 { margin-top: 18px; font-size: clamp(30px, 3.3vw, 50px); line-height: 1.06; }
+.lp-body { margin-top: 18px; max-width: 34em; font-size: 16.5px; line-height: 1.6; color: var(--text-2); }
+.lp-body + .lp-body { margin-top: 10px; }
+.lp-copy .fine { margin-top: 14px; max-width: 40em; }
+.lp-copy .tag { margin-top: 16px; }
+.lp-copy .lp-link { margin-top: 30px; }
+
+.lp-facts { display: flex; flex-wrap: wrap; gap: 18px clamp(24px, 3vw, 44px); margin: 30px 0 0; }
+.lp-facts dt { color: var(--text-3); }
+.lp-facts dd { margin: 7px 0 0; font-size: 28px; font-weight: 560; line-height: 1.1; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+.lp-facts dd.words { font-size: 17px; line-height: 31px; letter-spacing: -0.01em; }
+
+.lp-figure { margin: 0; }
+.lp-figure .plate-frame { padding: clamp(18px, 2.4vw, 34px); border-radius: 24px; }
+.lp-figure .plate { min-height: 0; }
+.lp-plate-wait { aspect-ratio: 2 / 1; }
+.lp-figure figcaption { margin-top: 14px; font: 500 11px/1.4 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+
+/* Two buildings: the incentive step at which each starts to pay, as a bar on the slider's scale */
+.lp-bars, .lp-cases { border-radius: 24px; background: #0b111c; box-shadow: inset 0 0 0 1px var(--line); }
+.lp-bars { display: grid; gap: 28px; padding: clamp(22px, 2.6vw, 38px); }
+.lp-bar > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.lp-bar span { font-size: 15px; color: var(--text-2); }
+.lp-bar b { font-size: clamp(22px, 2.2vw, 30px); font-weight: 560; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+.lp-bar i { position: relative; display: block; height: 4px; margin-top: 12px; border-radius: 4px; overflow: hidden; background: #2a3650; }
+.lp-bar i::after { content: ""; position: absolute; inset: 0; background: var(--lamp); transform-origin: left; transform: scaleX(0);
+  transition: transform 1100ms var(--ease) 300ms; }
+[data-shown="true"] .lp-bar i::after { transform: scaleX(var(--w)); }
+
+/* The scored validation cases: ours next to the actual figure */
+.lp-cases { margin: 0; padding: 0; list-style: none; }
+.lp-cases li { padding: clamp(20px, 2.4vw, 32px); }
+.lp-cases li + li { border-top: 1px solid var(--line); }
+.lp-cases header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lp-cases h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.lp-chip { flex: none; padding: 4px 9px; border-radius: 6px; font: 500 11px/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.lp-cases li[data-status="pass"] .lp-chip { background: var(--pass-wash); color: var(--pass); }
+.lp-cases li[data-status="miss"] .lp-chip { background: var(--miss-wash); color: var(--miss); }
+.lp-cases dl { display: flex; gap: clamp(32px, 4vw, 60px); margin: 18px 0 0; }
+.lp-cases dt { color: var(--text-3); }
+.lp-cases dd { margin: 5px 0 0; font-size: 30px; font-weight: 560; line-height: 1.1; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+.lp-cases .fine { margin-top: 12px; }
+
+/* The three data layers, as one ruled row */
+.lp-sources { padding-top: clamp(96px, 11vw, 176px); }
+.lp-sources ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 20px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.lp-sources li { padding: 24px 28px 0 0; }
+.lp-sources li + li { padding-left: 28px; border-left: 1px solid var(--line); }
+.lp-sources h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.lp-sources li p { margin-top: 6px; font-size: 14.5px; line-height: 1.55; color: var(--text-2); }
+
+.lp-end { padding-top: clamp(112px, 13vw, 208px); padding-bottom: 36px; }
+.lp-end h2 { max-width: 13em; margin-bottom: 36px; font-size: clamp(34px, 4.6vw, 72px); line-height: 1.02; }
+.lp-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: clamp(88px, 10vw, 150px); padding-top: 20px;
+  border-top: 1px solid var(--line); font-size: 12.5px; color: var(--text-3); }
+
+/* Motion. Only opacity and transform move; the global reduced-motion rule in styles.css switches all of it off */
+@keyframes lp-rise { from { opacity: 0; transform: translateY(18px); } }
+.lp-hero-text > *, .lp-readout { animation: lp-rise 900ms var(--ease) both; }
+.lp-hero-text > :nth-child(1) { animation-delay: 120ms; }
+.lp-hero-text > :nth-child(2) { animation-delay: 200ms; }
+.lp-hero-text > :nth-child(3) { animation-delay: 300ms; }
+.lp-hero-text > :nth-child(4) { animation-delay: 400ms; }
+.lp-readout { animation-delay: 620ms; }
+.lp-reveal > * { opacity: 0; transform: translateY(22px); transition: opacity 800ms var(--ease), transform 800ms var(--ease); }
+.lp-reveal > :nth-child(2) { transition-delay: 110ms; }
+.lp-reveal > :nth-child(3) { transition-delay: 220ms; }
+.lp-reveal[data-shown="true"] > * { opacity: 1; transform: none; }
+
+@media (max-width: 899px) {
+  .lp-nav .topnav a:not(.lp-nav-open) { display: none; }
+  .lp-hero { padding-top: 104px; }
+  .lp-backdrop::after { background: linear-gradient(180deg, var(--night) 0%, rgba(20, 28, 43, 0.82) 38%, rgba(20, 28, 43, 0.2) 70%, var(--night) 100%); }
+  .lp-hero-text { align-self: start; }
+  .lp-hero-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+  .lp-split, .lp-split.copy-first { grid-template-columns: minmax(0, 1fr); }
+  .lp-split .lp-copy { order: -1; }
+  .lp-sources ul { grid-template-columns: minmax(0, 1fr); }
+  .lp-sources li, .lp-sources li + li { padding: 20px 0; border-left: 0; }
+  .lp-sources li + li { border-top: 1px solid var(--line); }
 }
-.lp-hero {display:flex;flex-direction:column;min-height:0;padding:0;align-items:stretch;background:#101821}
-.lp-hero .lp-intro {width:100%;max-width:760px;align-self:center;padding:clamp(25px,4vh,52px) var(--lp-gutter) 0;text-align:center;box-sizing:content-box;position:relative;z-index:1}
-.lp-hero .lp-intro h1 {max-width:12.5ch;margin:12px auto 16px;font-size:clamp(42px,4.7vw,72px);text-wrap:balance}
-.lp-hero .lp-intro p {max-width:50ch;margin-inline:auto}
-.lp-hero .lp-button {margin-top:18px}
-.hero-map {position:relative;height:clamp(305px,48svh,550px);margin-top:-16px;background:#141c2b url('/houston-preview.jpg') center / cover no-repeat;mask-image:linear-gradient(transparent,#000 22%);touch-action:pan-y}
-.hero-map-scene {position:absolute;inset:0;pointer-events:none}
-.hero-live-map {transition:opacity 380ms var(--ease)}
-@media(max-width:740px){.lp-hero .lp-intro {box-sizing:border-box}.lp-hero .lp-intro h1 {font-size:clamp(36px,8.5vw,50px);max-width:15ch}.hero-map {height:clamp(265px,40svh,365px)}}
-.hero-credit {position:absolute;right:8px;bottom:4px;font-size:10px;color:#c2cddd;background:var(--glass);padding:1px 6px;border-radius:4px}
-.hero-note {position:absolute;left:8px;bottom:4px;font-size:10px;color:var(--lamp);background:var(--glass);padding:1px 6px;border-radius:4px}
-.lp-study .tag {margin:0 0 10px}
-.lp-study .fine {margin:-14px 0 24px}
-.lp-check {margin-top:36px}
-.lp-check a {color:var(--lamp)!important;text-decoration:underline!important;text-underline-offset:3px}
