@@ -152,13 +152,13 @@ input[type="range"].quiet::-webkit-slider-thumb { width: 14px; height: 14px; mar
 .maplibregl-ctrl-attrib-button { filter: invert(0.85); }
 
 /* The 3D tour of a scanned floor, opened large over the map */
-.tour { position: absolute; z-index: 4; top: 12px; left: 12px; bottom: 12px; right: calc(var(--gutter) - 2px); border-radius: 22px; overflow: hidden; background: #0b111c; box-shadow: var(--float); animation: tour-in 320ms var(--ease); }
-.tour iframe { display: block; width: 100%; height: 100%; border: 0; }
-.tour-bar { position: absolute; inset: 12px; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; pointer-events: none; }
-.tour-top { align-self: stretch; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.tour { position: absolute; z-index: 4; top: 12px; left: 12px; bottom: 12px; right: calc(var(--gutter) - 2px); border-radius: 22px; overflow: hidden; background: #0b111c; box-shadow: var(--float); animation: tour-in 320ms var(--ease); display: flex; flex-direction: column; }
+.tour iframe { display: block; width: 100%; flex: 1 1 0; min-height: 0; border: 0; }
+.tour-top { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 54px; padding: 10px 12px; }
+.tour-top .fine { margin-right: auto; padding-left: 6px; color: var(--text-3); font-size: 12.5px; }
 .tour-top .segmented { margin-right: auto; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 0 0 1px var(--line); }
 .tour-top .segmented button { padding: 6px 14px; }
-.tour-foot { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tour-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 8px; padding: 8px 12px; }
 .tour-foot p { padding: 7px 13px; border-radius: 999px; background: var(--glass); color: var(--text-2); font-size: 12.5px; box-shadow: 0 0 0 1px var(--line); }
 .tour-foot .fine { color: var(--text-3); font-size: 12px; }
 .tour-steps { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 0 0 1px var(--line); }
@@ -166,7 +166,6 @@ input[type="range"].quiet::-webkit-slider-thumb { width: 14px; height: 14px; mar
 .tour-steps button:hover { background: var(--surface-2); color: var(--text); }
 .tour-steps button:active { transform: scale(0.94); }
 .tour-steps svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.tour-bar button { pointer-events: auto; }
 @keyframes tour-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
 
 /* ---------- Side panel: floats over the map ---------- */

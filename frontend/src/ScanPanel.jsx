@@ -32,7 +32,7 @@ function Tour({scan, sdkKey, focus, onPlaced, onClose}) {
   const tour = useRef(null);                       // the connected SDK, for the view buttons
   const [status,setStatus] = useState("Opening the 3D tour…");
   const [view,setView] = useState(null);           // which of VIEWS the tour is showing, once it plays
-  const [free,setFree] = useState(false);          // true when this scan lets us leave the walk for the 3D model
+  const [free,setFree] = useState(null);           // true when this scan lets us leave the walk for the 3D model, false when it refuses
   function show(name) {
     const sdk = tour.current;
     if (sdk) sdk.Mode.moveTo(sdk.Mode.Mode[name]).catch(() => {});
@@ -47,7 +47,7 @@ function Tour({scan, sdkKey, focus, onPlaced, onClose}) {
   }
   // Start outside if the scan allows it: every label is in view there and the model turns freely
   async function startOutside(sdk) {
-    try { await sdk.Mode.moveTo(sdk.Mode.Mode.DOLLHOUSE); setFree(true); } catch { /* walk only */ }
+    try { await sdk.Mode.moveTo(sdk.Mode.Mode.DOLLHOUSE); setFree(true); } catch { setFree(false); /* walk only */ }
   }
   useEffect(() => {
     let active = true;
@@ -122,22 +122,22 @@ function Tour({scan, sdkKey, focus, onPlaced, onClose}) {
   const query = new URLSearchParams({m:scan.model_id,play:"1",title:"0",brand:"0",qs:"1",applicationKey:sdkKey});
   const root = document.getElementById("tour-root");
   if (!root) return null;
+  // Our controls sit in their own strips above and below the tour, so they never cover Matterport's own buttons
   return createPortal(<div className="tour">
+    <div className="tour-top">
+      {free && view && <div className="segmented" role="group" aria-label="How to look at the scan">{VIEWS.map(([name,label]) =>
+        <button key={name} aria-pressed={view === name} onClick={() => show(name)}>{label}</button>)}</div>}
+      {free === false && view && <p className="fine">Walk only: this scan does not offer the 3D model or the floor plan.</p>}
+      <button className="pill" onClick={onClose}>Close tour<span className="pill-icon" aria-hidden="true">×</span></button>
+    </div>
     <iframe ref={frame} title="Matterport floor tour" allow="fullscreen; xr-spatial-tracking" allowFullScreen src={"https://my.matterport.com/show/?"+query}/>
-    <div className="tour-bar">
-      <div className="tour-top">
-        {free && view && <div className="segmented" role="group" aria-label="How to look at the scan">{VIEWS.map(([name,label]) =>
-          <button key={name} aria-pressed={view === name} onClick={() => show(name)}>{label}</button>)}</div>}
-        <button className="pill" onClick={onClose}>Close tour<span className="pill-icon" aria-hidden="true">×</span></button>
-      </div>
-      <div className="tour-foot">
-        {view === "INSIDE" && <div className="tour-steps" role="group" aria-label="Walk through the scan">{STEPS.map(([key,label,path]) =>
-          <button key={key} onClick={() => step(key)} aria-label={label} title={label}>
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d={path}/></svg></button>)}</div>}
-        {view && <p className="fine">{view === "INSIDE" ? "Arrow keys walk and turn · click the floor to jump there · drag to look around"
-          : "Drag to turn · right-drag to move · scroll to zoom"}</p>}
-        <p role="status">{status}</p>
-      </div>
+    <div className="tour-foot">
+      {view === "INSIDE" && <div className="tour-steps" role="group" aria-label="Walk through the scan">{STEPS.map(([key,label,path]) =>
+        <button key={key} onClick={() => step(key)} aria-label={label} title={label}>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d={path}/></svg></button>)}</div>}
+      {view && <p className="fine">{view === "INSIDE" ? "Arrow keys walk and turn · click the floor to jump there · drag to look around"
+        : "Drag to turn · right-drag to move · scroll to zoom"}</p>}
+      <p role="status">{status}</p>
     </div>
   </div>, root);
 }
