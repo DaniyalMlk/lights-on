@@ -4,6 +4,7 @@ import CityMap from "./CityMap.jsx";
 import BuildingPanel from "./BuildingPanel.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import ProofPanel from "./ProofPanel.jsx";
+import ComparePanel from "./ComparePanel.jsx";
 import BuildingList from "./BuildingList.jsx";
 
 // Does the residual cover the price at this incentive? gap is $/SF still missing (for sorting); null = no price
@@ -35,6 +36,41 @@ export default function App() {
   const [hoveredId, setHoveredId] = useState(null);
   const [view, setView] = useState("list");               // list | building | validation
   const [tab, setTab] = useState("Overview");             // inside a building: Overview | Agent
+  const [pair, setPair] = useState([null, null]);
+  const [slot, setSlot] = useState(0);
+  const comparing = view === "building" && tab === "Compare";
+  const complete = pair.every(Boolean);
+
+  function openTab(next) {
+    if (next === "Compare" && !comparing) {
+      const first = selected?.map_only ? null : selectedId;
+      setView("building");
+      setPair([first, null]);
+      setSlot(first ? 1 : 0);
+      setMode("move");
+    } else if (next !== "Compare") {
+      if (!selectedId) {
+        const id = pair.find(Boolean);
+        if (!id) { selectBuilding(null); return; }
+        selectBuilding(id);
+      }
+      setMode("turn");
+    }
+    setTab(next);
+  }
+
+  function choose(id, index) {
+    if (!towers.some(f => f.properties.id === id)) return;
+    const existing = pair.indexOf(id);
+    if (complete && existing >= 0 && existing !== slot) return;
+    const target = index ?? (existing >= 0 ? existing : slot);
+    if (target == null || (existing >= 0 && existing !== target)) return;
+    const next = [...pair];
+    next[target] = existing === target ? null : id;
+    setPair(next);
+    const empty = next.indexOf(null);
+    setSlot(empty < 0 ? null : empty);
+  }
   const [incentive, setIncentive] = useState(0);
   const [vacancyGate, setVacancyGate] = useState(35);
   const [touched, setTouched] = useState(false);          // the slider thumb pulses until first use
@@ -106,9 +142,12 @@ export default function App() {
       right: window.innerWidth > 860 && side.current ? side.current.offsetWidth + 24 : 0,
       bottom: card.current ? card.current.offsetHeight + 40 : 0,
     });
+    const observer = new ResizeObserver(measure);
+    observer.observe(side.current);
+    observer.observe(card.current);
     measure();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
   }, []);
 
   // Recompute verdicts for the current slider values
@@ -134,11 +173,11 @@ export default function App() {
   const scored = proof ? proof.cases.filter(c => c.status === "pass" || c.status === "miss").length : 0;
 
   return (
-    <main className="stage">
+    <main className="stage" data-comparing={comparing} data-compare-wide={comparing && complete}>
       <section className="map-wrap" aria-label="Map of downtown Houston">
-        {mapData && <CityMap data={mapData} selectedId={selectedId} hoveredId={hoveredId} rightInset={inset.right} bottomInset={inset.bottom}
+        {mapData && <CityMap data={mapData} pair={comparing ? pair : null} selectedId={comparing ? null : selectedId} hoveredId={hoveredId} rightInset={inset.right} bottomInset={inset.bottom}
                              mode={mode} plate={plate} marks={marks} focus={focus}
-                             onSelect={selectBuilding} onHover={setHoveredId} onGrab={() => setExplored(true)}
+                             onSelect={comparing ? choose : selectBuilding} onHover={setHoveredId} onGrab={() => setExplored(true)}
                              onMode={(next) => { setMode(next); setExplored(false); }} onMark={pickLabel} />}
 
         <header className="island">
@@ -195,20 +234,21 @@ export default function App() {
 
       <aside className="side" ref={side}>
         {view === "list" && <BuildingList features={mapData?.features} selectedId={selectedId} hoveredId={hoveredId}
-                                          onSelect={selectBuilding} onHover={setHoveredId} error={loadError} />}
+                                          onSelect={selectBuilding} onHover={setHoveredId} onCompare={() => openTab("Compare")} error={loadError} />}
         {view !== "list" && <>
           <div className="side-head">
             <button className="back" onClick={closeSheet}><span aria-hidden="true">←</span>
               {view === "validation" && backTo.current === "building" && selected ? selected.name : "All towers"}</button>
             {view === "building" && <nav className="tabs" aria-label="Building views">
-              {["Overview", "Agent"].map((t) => (
-                <button key={t} aria-pressed={t === tab} onClick={() => setTab(t)}>{t === "Agent" ? "Agent run" : t}</button>
+              {["Overview", "Agent", "Compare"].map((t) => (
+                <button key={t} aria-pressed={t === tab} onClick={() => openTab(t)}>{t === "Agent" ? "Agent run" : t}</button>
               ))}
             </nav>}
           </div>
           <div className="sheet" key={view + selectedId + tab}>
             {view === "validation" && <ProofPanel proof={proof} />}
-            {view === "building" && (selected?.map_only
+            {comparing && <ComparePanel towers={towers} pair={pair} slot={slot} onSlot={setSlot} onChoose={choose} incentive={incentive} />}
+            {view === "building" && !comparing && (selected?.map_only
               ? <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
               : tab === "Agent"
                 ? <AgentPanel key={selectedId} buildingId={selectedId} names={names} />

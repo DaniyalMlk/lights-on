@@ -230,7 +230,7 @@ function towerView(map, feature, rightInset) {
            metersPerPixel: Math.max(metersPerPixelAt(19.4, at.lat), Math.min(metersPerPixelAt(16.8, at.lat), metersPerPixel)) };
 }
 
-export default function CityMap({ data, selectedId, hoveredId, rightInset, bottomInset, mode, plate, marks, focus,
+export default function CityMap({ data, pair, selectedId, hoveredId, rightInset, bottomInset, mode, plate, marks, focus,
                                   onSelect, onHover, onGrab, onMode, onMark }) {
   const container = useRef(null);
   const map = useRef(null);
@@ -374,13 +374,17 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
   useEffect(() => {
     if (!ready) return;
     paint();
+    map.current.setFilter("compare-outline", ["in", ["get", "id"], ["literal", (pair ?? []).filter(Boolean)]]);
     for (const [id, pin] of pins.current) {
       const active = id === selectedId || id === hoveredId;
       pin.dataset.active = String(active);
-      pin.setAttribute("aria-pressed", String(id === selectedId));
-      pin.style.zIndex = active ? "3" : pin.dataset.lit === "true" ? "2" : "1";
+      const index = pair?.indexOf(id) ?? -1;
+      if (index >= 0) pin.dataset.slot = index === 0 ? "A" : "B";
+      else delete pin.dataset.slot;
+      pin.setAttribute("aria-pressed", String(id === selectedId || index >= 0));
+      pin.style.zIndex = index >= 0 ? "4" : active ? "3" : pin.dataset.lit === "true" ? "2" : "1";
     }
-  }, [selectedId, hoveredId, ready]);
+  }, [selectedId, hoveredId, pair, ready]);
 
   // Fly to the selected tower in a slow arc, or back out to all of downtown
   useEffect(() => {
@@ -567,6 +571,9 @@ function addLayers(map, latest, pins) {
       "fill-extrusion-opacity": 1,
     },
   });
+  map.addLayer({ id: "compare-outline", type: "line", source: "buildings",
+    filter: ["==", ["get", "id"], ""],
+    paint: { "line-color": "#f4bf5f", "line-width": 3 } });
   map.addSource("plan", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({
     id: "plan-3d", type: "fill-extrusion", source: "plan",
@@ -584,8 +591,8 @@ function addLayers(map, latest, pins) {
   map.on("mousemove", "plan-3d", (e) => { if (markUnder(e) != null) map.getCanvas().style.cursor = "pointer"; });
   map.on("mouseleave", "plan-3d", () => { map.getCanvas().style.cursor = ""; });
 
+  map.on("click", ["towers-dark", "towers-lit"], e => latest.current.onSelect(e.features[0].properties.id));
   for (const layer of ["towers-dark", "towers-lit"]) {
-    map.on("click", layer, (e) => latest.current.onSelect(e.features[0].properties.id));
     map.on("mousemove", layer, (e) => {
       map.getCanvas().style.cursor = "pointer";
       latest.current.onHover(e.features[0].properties.id);
@@ -613,7 +620,10 @@ function addLayers(map, latest, pins) {
     homes.className = "pin-homes";
     homes.textContent = p.homes == null ? "" : `${p.homes.toLocaleString()} homes`;
     pin.append(name, homes);
-    pin.onclick = () => latest.current.onSelect(p.id);
+    pin.onclick = event => {
+      event.stopPropagation();
+      latest.current.onSelect(p.id);
+    };
     pin.onmouseenter = () => latest.current.onHover(p.id);
     pin.onmouseleave = () => latest.current.onHover(null);
     new Marker({ element: pin, anchor: "top", offset: [0, 8] }).setLngLat(center(feature)).addTo(map);
