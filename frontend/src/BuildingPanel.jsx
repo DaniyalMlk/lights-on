@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import AnimatedNumber from "./AnimatedNumber.jsx";
+import Plate from "./Plate.jsx";
 import ScanPanel from "./ScanPanel.jsx";
 import StudyDetails from "./StudyDetails.jsx";
 import { money, perSf, tonnes } from "./format.js";
-import { readPlate } from "./plan3d.js";
 
 const LABELS = { rent_mult: "Rent ±10%", free_weeks: "Free weeks", cap: "Cap rate ±0.5 pt", opex: "Opex ±5 pt", cost_mult: "Conversion cost" };
 const LEGEND = [["apartments", "Apartments"], ["corridor", "Corridor"], ["dark", "Dark zone"], ["core", "Core"], ["storage", "Storage"]];
@@ -25,34 +25,6 @@ function ResidualRange({ worst, base, high }) {
       <div><dt>High</dt><dd>{money(high)}</dd></div>
     </dl>
   </div>;
-}
-
-// Apartment fills in the plate drawing (backend/tools/layout.py): 2BR, 1BR, studio
-const UNIT_FILLS = 'path[fill="#FFC857"], path[fill="#FFD98A"], path[fill="#FFE8B5"]';
-
-// The floor plate, drawn into the page so its apartments can switch on one after another around the floor.
-// The same drawing is handed to the map (onPlate), which builds it in 3D on top of the tower.
-function Plate({ buildingId, depth, onPlate }) {
-  const box = useRef(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`/api/buildings/${encodeURIComponent(buildingId)}/plate.svg?depth=${depth}`, { signal: controller.signal })
-      .then(r => { if (!r.ok) throw new Error(); return r.text(); })
-      .then(text => {
-        const svg = new DOMParser().parseFromString(text, "image/svg+xml").documentElement;
-        if (svg.nodeName !== "svg") throw new Error();
-        svg.setAttribute("aria-label", `Indicative floor plate at ${depth} ft unit depth`);
-        svg.querySelectorAll(UNIT_FILLS).forEach((unit, i) => {
-          unit.classList.add("unit");
-          unit.style.setProperty("--i", i);
-        });
-        box.current?.replaceChildren(document.importNode(svg, true));
-        onPlate({ id: buildingId, key: `${buildingId}:${depth}`, ...readPlate(svg) });
-      })
-      .catch(() => { if (!controller.signal.aborted && box.current) box.current.textContent = "Floor plate unavailable."; });
-    return () => controller.abort();
-  }, [buildingId, depth]);
-  return <div ref={box} className="plate" />;
 }
 
 export default function BuildingPanel({ buildingId, selected, incentive, focus, onFocus, onPlate, onMarks }) {
