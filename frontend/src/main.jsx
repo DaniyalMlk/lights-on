@@ -3,4 +3,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
 import App from "./App.jsx";
 
-createRoot(document.getElementById("root")).render(<App />);
+import Landing from "./Landing.jsx";
+
+const query = new URLSearchParams(location.search);
+const explorer = location.pathname === "/map" || ["view","tab","demo"].some(key => query.has(key));
+createRoot(document.getElementById("root")).render(explorer ? <App /> : <Landing />);

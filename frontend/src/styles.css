@@ -472,3 +472,4 @@ input[type="checkbox"] { accent-color: var(--lamp); }
 .support-summary { margin-top: 4px; font-size: 12px; font-variant-numeric: tabular-nums; }
 .support-summary small { display: block; color: var(--text-2); transition: color 280ms var(--ease); }
 .support-summary [data-met="true"] { color: var(--lamp); }
+.map-welcome {position:absolute;left:16px;top:76px;padding:8px 14px;background:var(--glass);color:var(--text);border-radius:16px;pointer-events:none;}
