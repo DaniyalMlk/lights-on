@@ -28,7 +28,7 @@ export default function BuildingList({ features, selectedId, hoveredId, onSelect
   const count = features?.filter(f => !f.properties.map_only).length;
   return <section className="catalog" aria-label="Building list">
     <header className="catalog-head">
-      <h2>{count ?? "–"} office towers <small>homes at the 36 ft layout</small></h2>
+      <h2>{count ?? "–"} downtown office buildings <small>homes at 36 ft</small></h2>
       <div className="sort" role="group" aria-label="Sort towers">
         {Object.entries(SORTS).map(([key, { name }]) =>
           <button key={key} aria-pressed={sort === key} onClick={() => setSort(key)}>{name}</button>)}

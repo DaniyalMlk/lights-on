@@ -178,8 +178,8 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
     <header className="scan-head">
       <div>
         <h3>3D tour</h3>
-        <p className="fine">{scan.tour_full_floor ? "A scanned floor of this building. It is not saved for measuring yet, so nothing is labeled."
-          : "A scan of part of a floor: enough to look around, too small to measure the floor from."}</p>
+        <p className="fine">{scan.tour_full_floor ? "A scanned floor, not measured yet: no labels."
+          : "A scan of part of a floor: too small to measure, so no labels."}</p>
       </div>
       <button className="pill" onClick={() => setOpen(!open)}>
         {open ? "Close tour" : "Open 3D tour"}<span className="pill-icon" aria-hidden="true">{open ? "×" : "↗"}</span></button>
@@ -192,7 +192,7 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
     <header className="scan-head">
       <div>
         <h3>Labeled in 3D, automatically</h3>
-        <p className="fine">{scan.labels.length} labels stand on the tower's floor and inside the tour. Each says how we know it.</p>
+        <p className="fine">{scan.labels.length} labels, each with how we know it.</p>
       </div>
       {key && <button className="pill" onClick={() => setOpen(!open)}>
         {open ? "Close tour" : "Open 3D tour"}<span className="pill-icon" aria-hidden="true">{open ? "×" : "↗"}</span></button>}

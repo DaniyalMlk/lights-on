@@ -49,13 +49,13 @@ export default function ProofPanel({ proof }) {
     <header>
       <p className="eyebrow">Validation</p>
       <h2>{s.passed} of {s.scored} scored cases passed</h2>
-      <p className="lede">Expected answers were written down before the run, and the miss is shown. Case 1 is a
+      <p className="lede">Expected answers were written down before the official run, and the miss is shown. Case 1 is a
         development check, not a holdout. {s.dropped} dropped for lack of data; {s.described} described, not scored;
         no negative case found.</p>
-      <p className="fine">Not fully blind: a first run on real data (Sat 00:30) showed some results early, and the change
-        log in docs/preregistration.md says which. Official run {when(proof.official_ran_at ?? proof.ran_at)}, parameters {proof.params_version}.
-        {proof.official_ran_at && proof.official_ran_at !== proof.ran_at &&
-          ` Run again ${when(proof.ran_at)} for the input-sensitivity table; the change log says why.`}</p>
+      <p className="fine">Not fully blind: a first run (Sat 00:30) showed some results early; the change log in
+        docs/preregistration.md says which. Official run {when(proof.official_ran_at ?? proof.ran_at)}, parameters {proof.params_version}
+        {proof.official_ran_at && proof.official_ran_at !== proof.ran_at
+          ? `; run again ${when(proof.ran_at)} for the input-sensitivity table.` : "."}</p>
     </header>
     <ol className="cases">{proof.cases.map((c, i) => <CaseRow key={c.case} c={c} index={i} />)}</ol>
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AttributionControl, LngLatBounds, Map as MapLibreMap, Marker, setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import { bestTurn, planDuration, planFeatures } from "./plan3d.js";
+import { bestTurn, planDuration, planFeatures, planOutline } from "./plan3d.js";
 
 // Let Vite bundle MapLibre's web worker so it works in dev and in the production build
 setWorkerUrl(workerUrl);
@@ -69,6 +69,8 @@ const FALL_MS = 350;          // and go out faster
 const ORBIT_DEG_PER_S = 9;    // one full turn in 40 seconds
 const CAMERA = { pitch: 60, bearing: -24 };
 const MAX_PITCH = 78;
+const ROOF_M = 1;              // thickness of the plain roof slab on each tower; the floor plan stands on it
+const TILT_ZOOM = 0.7;         // the fit is worked out for a flat map; tilted, the towers take less height, so we go closer
 const HOUSTON = [[-95.75, 29.5], [-95.0, 30.0]];   // the view never leaves the city
 
 // Window textures for the towers. One 16 x 16 tile holds four windows; a lit tower has most of them on,
@@ -97,7 +99,7 @@ function windowImage({ wall, panes }) {
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
 
-function frame(data, progress, activeIds) {
+function frame(data, progress, activeIds, shaped) {
   return {
     type: "FeatureCollection",
     features: data.features.map((f) => {
@@ -106,7 +108,7 @@ function frame(data, progress, activeIds) {
       const active = activeIds.includes(p.id);
       return {
         type: "Feature",
-        geometry: f.geometry,
+        geometry: shaped?.id === p.id ? shaped.geometry : f.geometry,   // the selected tower stands under its own floor
         properties: {
           id: p.id,
           h,
@@ -240,6 +242,7 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
   const [orbiting, setOrbiting] = useState(false);
   const flying = useRef(false);
   const gliding = useRef(0);                       // the running camera move, see glide
+  const shaped = useRef(null);                     // {id, geometry}: the selected tower redrawn to its floor's outline
   const aim = useRef(0);                           // how high above the street the camera is aiming, metres
   const latest = useRef({});
   const planClock = useRef({ plate: null, plateAt: 0, marks: null, marksAt: 0 });
@@ -280,7 +283,7 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
     const instance = map.current;
     if (!instance) return;
     const { data, active } = latest.current;
-    instance.getSource("buildings")?.setData(frame(data, progress.current, active));
+    instance.getSource("buildings")?.setData(frame(data, progress.current, active, shaped.current));
     instance.getSource("glow")?.setData(glowPoints(data, progress.current));
   }
 
@@ -305,8 +308,14 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
       instance.dragPan.disable();                        // dragging is ours: see takeOverGestures
       instance.scrollZoom.setWheelZoomRate(1 / 160);     // mouse wheel: about three times the default speed
       instance.scrollZoom.setZoomRate(1 / 40);           // trackpad: about twice the default speed
+      // MapLibre folds its credit line to the "i" button on the first drag; our drags are our own, so we do it
+      const foldCredit = () => {
+        const credit = instance.getContainer().querySelector(".maplibregl-ctrl-attrib");
+        credit?.removeAttribute("open");
+        credit?.classList.remove("maplibregl-compact-show");
+      };
       takeOverGestures(instance, () => latest.current.mode, () => aim.current,
-                       () => { halt(); setOrbiting(false); latest.current.onGrab?.(); });
+                       () => { halt(); setOrbiting(false); foldCredit(); latest.current.onGrab?.(); });
       instance.addControl(new AttributionControl({ compact: true }), "top-right");   // the dock owns the bottom edge
       map.current = instance;
       instance.once("load", () => {
@@ -410,6 +419,8 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
     if (!feature) {
       planClock.current = { plate: null, plateAt: 0, marks: null, marksAt: 0 };
       instance.getSource("plan")?.setData({ type: "FeatureCollection", features: [] });
+      shaped.current = null;
+      paint();
       return;
     }
     // Each thing rises once: the floor when it (or its unit depth) changes, the beacons when the labels arrive
@@ -422,7 +433,11 @@ export default function CityMap({ data, selectedId, hoveredId, rightInset, botto
 
     const origin = center(feature);
     const scene = { plate, marks, focus: focus?.index ?? null, origin, turn: bestTurn(plate, feature.geometry.coordinates[0], origin),
-                    roof: (feature.properties.height_ft ?? 0) * FEET_TO_M };
+                    roof: (feature.properties.height_ft ?? 0) * FEET_TO_M + ROOF_M };
+    // A scanned floor can have another shape than the outline the tower was drawn with: redraw the tower under it
+    const outline = planOutline(plate, origin, scene.turn);
+    shaped.current = outline ? { id: plate.id, geometry: outline } : null;
+    paint();
     const lasts = planDuration(plate);
     const source = instance.getSource("plan");
     if (still) { source?.setData(planFeatures(scene, Infinity, Infinity, 0)); return; }
@@ -502,7 +517,7 @@ function overview(map, { data, bottomInset }) {
   const fit = bounds.isEmpty() ? null
     : map.cameraForBounds(bounds, { padding: { top: 70, bottom: bottomInset || 150, left: 24, right: 24 }, maxZoom: 16.4, bearing: CAMERA.bearing });
   return fit ? { focus: { lng: fit.center.lng, lat: fit.center.lat }, height: 0,
-                 metersPerPixel: metersPerPixelAt(fit.zoom, fit.center.lat), ...CAMERA } : null;
+                 metersPerPixel: metersPerPixelAt(fit.zoom + TILT_ZOOM, fit.center.lat), ...CAMERA } : null;
 }
 
 // Everything we draw on top of the basemap: the rest of downtown in 3D, then our towers and their pins
@@ -567,6 +582,18 @@ function addLayers(map, latest, pins) {
       "fill-extrusion-opacity": 1,
     },
   });
+  // A plain roof: without it the window pattern would run across the top of every tower
+  map.addLayer({
+    id: "towers-roof", type: "fill-extrusion", source: "buildings",
+    paint: {
+      "fill-extrusion-base": ["get", "h"],
+      "fill-extrusion-height": ["+", ["get", "h"], ROOF_M],
+      "fill-extrusion-color": "#1c2740",
+      "fill-extrusion-opacity": 1,
+      "fill-extrusion-vertical-gradient": false,
+    },
+  });
+
   map.addSource("plan", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({
     id: "plan-3d", type: "fill-extrusion", source: "plan",

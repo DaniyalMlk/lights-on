@@ -98,6 +98,12 @@ function block(rings, place, properties) {
   return { type: "Feature", geometry: { type: "Polygon", coordinates }, properties };
 }
 
+// The floor's outline on the map, for redrawing the tower under it. Null when the drawing has no slab.
+export function planOutline(plate, origin, turn) {
+  const outline = plate.shapes.find(shape => shape.fill === SLAB)?.polygons[0];
+  return outline ? block(outline, placer(plate, origin, turn), {}).geometry : null;
+}
+
 // How long until the last apartment has finished rising, ms
 export function planDuration(plate) {
   const homes = plate.shapes.filter(shape => PARTS[shape.fill].home).reduce((n, shape) => n + shape.polygons.length, 0);

@@ -70,7 +70,7 @@ export default function BuildingPanel({ buildingId, selected, incentive, focus, 
     return () => controller.abort();
   }, [buildingId]);
 
-  if (!buildingId) return <div className="panel empty">Pick a tower on the map or in the list.</div>;
+  if (!buildingId) return <div className="panel empty">Pick a building on the map or in the list.</div>;
   if (error) return <div className="panel empty">Building analysis unavailable. Is the API running?</div>;
   if (!data) return <div className="panel"><div className="skeleton-block" /><div className="skeleton-block tall" /></div>;
 
@@ -78,6 +78,7 @@ export default function BuildingPanel({ buildingId, selected, incentive, focus, 
   const depths = geometry.by_depth;
   const counts = Object.values(depths).map(row => row.homes);
   const lo = Math.min(...counts), hi = Math.max(...counts);
+  const homes = lo === hi ? lo.toLocaleString() : `${lo.toLocaleString()}–${hi.toLocaleString()}`;
   const daylight = depths["36"].daylight_share;
   const credit = incentive * (selected?.gfa_sf ?? 0);
   const swing = Math.max(1, ...(econ?.tornado ?? []).flatMap(t => [Math.abs(t.low_per_gsf), Math.abs(t.high_per_gsf)]));
@@ -99,11 +100,11 @@ export default function BuildingPanel({ buildingId, selected, incentive, focus, 
       </header>
 
       <dl className="stats" aria-label="Key facts">
-        <div><dt>Potential homes</dt><dd className="accent">{lo === hi ? lo.toLocaleString() : `${lo.toLocaleString()}–${hi.toLocaleString()}`}</dd>
+        <div><dt>Potential homes</dt><dd className={`accent ${homes.length > 9 ? "long" : ""}`}>{homes}</dd>
           <small>30–42 ft layouts</small></div>
-        <div><dt>Near a window</dt><dd>{Math.round(daylight * 100)}%</dd><small>of the floor outside the core, within 36 ft</small></div>
+        <div><dt>Near a window</dt><dd>{Math.round(daylight * 100)}%</dd><small>36 ft, outside the core</small></div>
         <div className={selected?.lit ? "lit" : ""}><dt>Pays for itself?</dt><dd className="words">{verdict}</dd>
-          <small>at ${incentive}/SF hypothetical incentive</small></div>
+          <small>{incentive ? `with a hypothetical $${incentive}/SF` : "no incentive"}</small></div>
       </dl>
 
       <section className="plate-card">
@@ -118,14 +119,14 @@ export default function BuildingPanel({ buildingId, selected, incentive, focus, 
         </div>
         <p className="plate-count"><b><AnimatedNumber value={depths[depth].homes_per_floor} /></b> homes a floor ·{" "}
           <b><AnimatedNumber value={depths[depth].homes} /></b> in the building</p>
-        <p className="fine">Bedrooms need windows. Deeper than {depth} ft stays dark. The same floor stands on the tower in the map.</p>
+        <p className="fine">Bedrooms need windows. Deeper than {depth} ft stays dark.</p>
       </section>
 
       <ScanPanel building={building} focus={focus} onFocus={onFocus} onMarks={onMarks} />
 
       {econ ? (
-        <section className={`block pays ${selected?.lit ? "lit" : ""}`}>
-          <h3>Does it pay?</h3>
+        <details className={`block fold pays ${selected?.lit ? "lit" : ""}`}>
+          <summary><span>Does it pay?</span><em>{verdict}</em></summary>
           <p className="verdict">{selected?.label}{selected?.gated_out && " · filtered out by vacancy"}</p>
           <ResidualRange worst={econ.cases.downside.residual + credit} base={econ.cases.base.residual + credit}
                          high={econ.cases.upside.residual + credit} />
@@ -145,13 +146,13 @@ export default function BuildingPanel({ buildingId, selected, incentive, focus, 
               <span className="bar gain" style={{"--width": Math.abs(t.high_per_gsf) / swing * 100 + "%"}}>{perSf(t.high_per_gsf)}</span>
             </div>
           ))}
-        </section>
+        </details>
       ) : (
-        <section className="block"><h3>Does it pay?</h3><p className="muted">No rent data for this building yet.</p></section>
+        <p className="block fine">Does it pay? No rent data for this building yet.</p>
       )}
 
-      <section className="block">
-        <h3>Carbon <span className="muted">· illustrative</span></h3>
+      <details className="block fold">
+        <summary><span>Carbon <i>· illustrative</i></span><em>{Math.round(carbon.avoided_t_low).toLocaleString()}–{tonnes(carbon.avoided_t_high)} CO₂e avoided</em></summary>
         <p>Reusing the structure would avoid roughly <b>{tonnes(carbon.avoided_t_low)} to {tonnes(carbon.avoided_t_high)}</b> CO₂e
           of upfront embodied carbon compared with building new.</p>
         <p className="fine">Literature range (50–75% of new-build embodied carbon), not a measured saving for this building.</p>
@@ -166,7 +167,7 @@ export default function BuildingPanel({ buildingId, selected, incentive, focus, 
           </tbody>
         </table>
         </details>
-      </section>
+      </details>
 
       <StudyDetails data={data} depth={depth} />
     </article>

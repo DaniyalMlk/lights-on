@@ -35,6 +35,18 @@ function toSteps(events) {
   return out;
 }
 
+// The agent's own file reading is plumbing: say what happened in a few words instead of printing the file
+const FILE_TOOLS = { ls: "listed the saved outputs", read_file: "read a saved output", write_file: "saved a file",
+                     edit_file: "edited a file", glob: "looked for files", grep: "searched the saved outputs" };
+function toolLine(tool) {
+  const plain = FILE_TOOLS[tool.name];
+  if (!plain || tool.summary == null) return tool.summary;
+  return /^error/i.test(tool.summary) ? "file not found, looked again" : plain;
+}
+
+// Models answer in markdown; the panel shows plain text
+const tidy = (text) => text.replace(/\*\*/g, "").replace(/^#{1,6}\s+/gm, "").replace(/^\s*[*-]\s+/gm, "· ");
+
 function Clamp({ text, lines = 6 }) {
   const [open, setOpen] = useState(false);
   const long = text.length > 420;
@@ -65,12 +77,12 @@ function Run({ events, names }) {
         <header><b>{s.to}</b></header>
         <p className="task">{say(s.task)}</p>
         {s.tools.length > 0 && <ul className="tools">{s.tools.map((t, j) =>
-          <li key={j} data-bad={t.summary?.startsWith("error") || undefined}><code>{t.name}</code>
-            {t.summary && <span>{say(t.summary)}</span>}</li>)}</ul>}
+          <li key={j} data-bad={(!FILE_TOOLS[t.name] && t.summary?.startsWith("error")) || undefined}><code>{t.name}</code>
+            {t.summary && <span>{say(toolLine(t))}</span>}</li>)}</ul>}
         {s.rejection && <div className="rejected"><b>Verifier rejected</b>{s.rejection.rejected.map((x, k) =>
           <p key={k}>{say(x.text)} · {x.reason}{x.fix ? ` · ${x.fix}` : ""}</p>)}</div>}
         {s.drafts.length > 1 && <p className="fine">Draft resubmitted after a rejection.</p>}
-        {s.reply && <Clamp text={say(s.reply)} lines={3} />}
+        {s.reply && <Clamp text={tidy(say(s.reply))} lines={3} />}
       </li>))}
     </ol>
 
@@ -80,15 +92,19 @@ function Run({ events, names }) {
       {r.final.rejected?.map((x, i) => <p key={i} className="fine">{say(x.text)} · {x.reason}</p>)}
     </section>}
 
-    {r.answer && <section className="block answer"><h3>Answer</h3><Clamp text={say(r.answer)} lines={12} /></section>}
+    {r.answer && <section className="block answer"><h3>Answer</h3><Clamp text={tidy(say(r.answer))} lines={12} /></section>}
     {r.notices.map((e, i) => <p key={i} className="fine">{e.type === "done" ? `Done${e.seconds ? ` in ${e.seconds}s` : ""}.`
       : e.type === "replay" ? `Recorded run from ${when(e.recorded_at)} (${modelName(e.model)})` : say(e.reason || e.text)}</p>)}
   </>;
 }
 
-export default function AgentPanel({ buildingId, names }) {
+export default function AgentPanel({ buildingId, names, onOpen }) {
   const [events, setEvents] = useState([]);
   const [record, setRecord] = useState(undefined);
+  const [recorded, setRecorded] = useState([]);           // ids of the buildings that have a recorded run
+  useEffect(() => {
+    fetch("/api/recordings").then(r => r.ok ? r.json() : []).then(setRecorded).catch(() => setRecorded([]));
+  }, []);
   useEffect(() => {
     if (!buildingId) return;
     const controller = new AbortController();
@@ -144,20 +160,25 @@ export default function AgentPanel({ buildingId, names }) {
         <p className="lede">Every number in the memo must trace back to a saved tool output. A final check in code
           repeats that test.</p>
       </header>
-      {notice && <p role="status" className="notice">{notice} {record ? "Showing the saved recording." : "Recording unavailable."}</p>}
+      {notice && <p role="status" className="notice">{notice}{record ? " Showing the saved recording." : ""}</p>}
 
       {!live && (record ? <>
           <p className="recorded">Recorded run from {when(record.recorded_at)} · {modelName(record.model)}
             {record.tokens?.input ? ` · ${record.tokens.input.toLocaleString()} tokens in` : ""}</p>
           <Run events={record.events} names={names} />
         </> :
-        <p className="muted">{record === undefined ? "Loading the recording…" : "No recorded run for this building yet."}</p>)}
+        record === undefined ? <p className="muted">Loading the recording…</p> :
+        <div className="no-run">
+          <p className="muted">No recorded run for this building.</p>
+          {recorded.length > 0 && <p className="fine">Recorded runs:{" "}{recorded.map(id =>
+            <button key={id} className="text-button" onClick={() => onOpen(id)}>{names.find(([known]) => known === id)?.[1] ?? id}</button>)}</p>}
+        </div>)}
 
       {live && <><p className="recorded live">{running ? "Live run in progress…" : "Live run"}</p><Run events={events} names={names} /></>}
 
       <div className="run-live">
         <button className="secondary" onClick={run} disabled={running || !buildingId}>{running ? "Running…" : "Run live"}</button>
-        <span className="fine">Uses the free Gemini quota; the recording stays if the run fails.</span>
+        <span className="fine">A live run can take over a minute. The recording stays if it fails.</span>
       </div>
     </article>
   );

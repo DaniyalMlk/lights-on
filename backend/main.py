@@ -117,6 +117,12 @@ def building_svg(building_id: str, depth: int = 36):
     return Response(svg, media_type="image/svg+xml")
 
 
+@app.get("/api/recordings")
+def recordings() -> list[str]:
+    """Ids of the buildings that have a recorded agent run, so a building without one can point to them."""
+    return [i for i in BUILDINGS if (WORK_DIR / i / "trace.json").exists()]
+
+
 @app.get("/api/buildings/{building_id}/recording")
 def recording(building_id: str):
     if building_id not in BUILDINGS:

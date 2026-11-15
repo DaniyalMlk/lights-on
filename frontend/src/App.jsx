@@ -63,6 +63,12 @@ export default function App() {
     setVacancyGate(35);
     setTouched(false);
   }
+  // Reset puts the two sliders back; it leaves the building you are looking at alone
+  function resetScenario() {
+    setIncentive(0);
+    setVacancyGate(35);
+    setTouched(false);
+  }
   // One tower is something you turn around; the whole city is something you move across
   function selectBuilding(id) {
     setSelectedId(id);
@@ -155,13 +161,13 @@ export default function App() {
         <div className="dock" ref={card}>
           <div className="dock-note">
             <ul className="legend">
-              <li className="lit">Could become homes and pay for itself</li>
+              <li className="lit">Homes that pay for themselves</li>
               <li className="dark">Not yet</li>
               <li className="off">Filtered out</li>
             </ul>
             <p className="hint" data-seen={explored}>{mode === "move"
-              ? "Drag to move · Shift + drag to turn · Scroll to zoom"
-              : "Drag to turn · Shift + drag to move · Scroll to zoom"}</p>
+              ? "Drag to move · Shift + drag to turn"
+              : "Drag to turn · Shift + drag to move"}</p>
           </div>
           <div className="scenario">
             <div className="control">
@@ -176,12 +182,12 @@ export default function App() {
             <div className={`result ${litTowers.length ? "lit" : ""}`} aria-live="polite">
               <b>{mapData ? <AnimatedNumber value={litHomes} /> : "–"}</b>
               <span>of {allHomes.toLocaleString()} homes
-                <small>{litTowers.length ? `${litTowers.length} of ${towers.length} towers lit` : "Drag the slider"}</small></span>
+                <small>{litTowers.length ? `${litTowers.length} of ${towers.length} buildings lit` : "Drag the slider"}</small></span>
             </div>
             <div className="control minor">
               <div className="scenario-row">
                 <label htmlFor="vacancy">At least <b>{vacancyGate}%</b> vacant</label>
-                <button className="text-button" onClick={() => restoreView(buildings)}>Reset</button>
+                <button className="text-button" onClick={resetScenario}>Reset</button>
               </div>
               <input id="vacancy" className="quiet" type="range" min="0" max="90" step="5" value={vacancyGate}
                      style={{ "--p": `${vacancyGate / 0.9}%` }} onChange={(e) => setVacancyGate(Number(e.target.value))} />
@@ -199,7 +205,7 @@ export default function App() {
         {view !== "list" && <>
           <div className="side-head">
             <button className="back" onClick={closeSheet}><span aria-hidden="true">←</span>
-              {view === "validation" && backTo.current === "building" && selected ? selected.name : "All towers"}</button>
+              {view === "validation" && backTo.current === "building" && selected ? selected.name : "All buildings"}</button>
             {view === "building" && <nav className="tabs" aria-label="Building views">
               {["Overview", "Agent"].map((t) => (
                 <button key={t} aria-pressed={t === tab} onClick={() => setTab(t)}>{t === "Agent" ? "Agent run" : t}</button>
@@ -211,7 +217,8 @@ export default function App() {
             {view === "building" && (selected?.map_only
               ? <div className="panel"><h2>{selected.name}</h2><p>Indicative location. Analysis requires a footprint.</p></div>
               : tab === "Agent"
-                ? <AgentPanel key={selectedId} buildingId={selectedId} names={names} />
+                ? <AgentPanel key={selectedId} buildingId={selectedId} names={names}
+                              onOpen={(id) => { selectBuilding(id); setTab("Agent"); }} />
                 : <BuildingPanel key={selectedId} buildingId={selectedId} selected={selected} incentive={incentive}
                                  focus={focus} onFocus={pickLabel} onPlate={setPlate} onMarks={setMarks} />)}
           </div>
