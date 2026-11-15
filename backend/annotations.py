@@ -79,10 +79,13 @@ def room_labels(model: dict, plate, height_m: float, seen: dict | None = None) -
         if look:
             label["walked"] = True
             if look["type"] != "Unclear":
-                label["seen"] = {"type": look["type"], "evidence": look["evidence"]}
+                checked = look.get("checked")                           # "right" or "wrong" once a person looked in the tour
+                label["room_id"] = room_id                              # so the app can send that person's check back
+                label["seen"] = {"type": look["type"], "evidence": look["evidence"], "checked": checked}
                 because = f" ({look['evidence']})" if look["evidence"] else ""
-                label["detail"] += (f" Room type seen by an AI model in this room's panorama: {look['type']}{because}. "
-                                    "Not confirmed by a person.")
+                verdict = {"right": "A person checked it in the tour: right.",
+                           "wrong": "A person checked it in the tour: wrong."}.get(checked, "Not confirmed by a person.")
+                label["detail"] += f" Room type seen by an AI model in this room's panorama: {look['type']}{because}. {verdict}"
         labels.append(label)
     return labels
 
@@ -157,10 +160,14 @@ def floor_labels(model: dict, typical_floor_sf: float | None = None, seen: dict 
     except ShapelyError:
         rooms = []                                   # a room shape we can't measure must not cost the floor its labels
     interior = sum(room.get("tone") == "interior" for room in rooms)
-    types = Counter(room["seen"]["type"] for room in rooms if room.get("seen"))
+    looks = [room["seen"] for room in rooms if room.get("seen")]
+    types = Counter(look["type"] for look in looks)
+    kept = Counter(look["type"] for look in looks if look["checked"] != "wrong")   # a person's "wrong" takes a room out
     summary = {"total": len(rooms), "outer_wall": len(rooms) - interior, "interior": interior,
                "typed": sum(room.pop("typed") for room in rooms),
                "walked": sum(room.pop("walked", False) for room in rooms),        # rooms the vision model looked at
                "seen": dict(types.most_common()),                                 # room types it saw, most common first
-               "amenities": {name: count for name, count in types.most_common() if name in AMENITIES}}
+               "checked": sum(bool(look["checked"]) for look in looks),           # how many of those a person checked
+               "right": sum(look["checked"] == "right" for look in looks),        # and how many the person agreed with
+               "amenities": {name: count for name, count in kept.most_common() if name in AMENITIES}}
     return {"labels": labels, "coverage": coverage, "reason": None, "rooms": rooms, "room_summary": summary}

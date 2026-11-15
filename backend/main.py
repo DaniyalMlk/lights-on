@@ -202,6 +202,22 @@ def building_labels(building_id: str):
             "tour_matched_by": tour["matched_by"] if tour else None}
 
 
+class RoomCheck(BaseModel):
+    right: bool | None = None            # true or false; null takes the check back
+
+
+@app.post("/api/buildings/{building_id}/rooms/{room_id}/check")
+def check_room(building_id: str, room_id: str, check: RoomCheck):
+    """A person looked at a room in the tour and says whether the AI's room type is right. Returns the labels again."""
+    if building_id not in BUILDINGS:
+        raise HTTPException(404, f"Unknown building {building_id}")
+    for scan in matterport.scans_for(BUILDINGS[building_id], matterport.load_index()):
+        if room_id in room_vision.load(scan["model_id"]):
+            room_vision.mark(scan["model_id"], room_id, check.right)
+            return building_labels(building_id)
+    raise HTTPException(404, "The vision walk has not looked at this room")
+
+
 @app.get("/api/config")
 def frontend_config():
     """The Matterport Showcase SDK key from .env, so it never sits in the repo or the JS bundle."""

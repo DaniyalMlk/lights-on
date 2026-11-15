@@ -36,6 +36,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Let the vision model name the rooms of a building's saved floor scan")
     parser.add_argument("name", help="part of the building's name, as in the app's list")
     parser.add_argument("--limit", type=int, help="look at no more than this many rooms this time")
+    parser.add_argument("--again", action="store_true", help="look once more at rooms already looked at")
     args = parser.parse_args()
 
     matches = [b for b in BUILDINGS.values() if args.name.lower() in b["name"].lower() and not b.get("synthetic")]
@@ -49,7 +50,7 @@ def main() -> None:
     rooms = room_vision.pano_for_each_room(model)
     print(f"{matches[0]['name']}: {len(rooms)} rooms have a panorama inside; {len(room_vision.load(model_id))} already looked at")
     try:
-        seen = room_vision.walk(model_id, model, limit=args.limit)
+        seen = room_vision.walk(model_id, model, limit=args.limit, again=args.again)
     except PermissionError as error:
         sys.exit(str(error))
     types = Counter(look["type"] for look in seen.values())

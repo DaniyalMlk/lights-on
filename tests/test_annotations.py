@@ -147,7 +147,7 @@ def test_room_labels_pass_on_matterports_own_type_and_count_the_gap():
     assert len(typed) == 1
     assert sum("gives this room no type" in room["detail"] for room in out["rooms"]) == 7
     assert out["room_summary"] == {"total": 8, "outer_wall": 7, "interior": 1, "typed": 1,
-                                   "walked": 0, "seen": {}, "amenities": {}}      # no vision walk on this floor
+                                   "walked": 0, "seen": {}, "checked": 0, "right": 0, "amenities": {}}      # no vision walk
 
 
 def test_room_labels_are_the_same_every_time_and_never_change_the_floor_labels():

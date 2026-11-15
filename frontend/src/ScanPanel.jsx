@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { verifiedConversion } from "./calibration.js";
 
@@ -155,6 +155,8 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
   const [key,setKey] = useState("");
   const [open,setOpen] = useState(false);
   const [placed,setPlaced] = useState(false);
+  // The tour keeps the labels it was opened with: a person's check changes the panel, and must not reload the tour
+  const tourScan = useMemo(() => scan, [scan?.model_id, scan?.rooms?.length]);
   useEffect(() => {
     const controller = new AbortController();
     async function read() {
@@ -195,6 +197,12 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
     {open && <Tour scan={{model_id:scan.tour_model_id, labels:[], panos:[]}} sdkKey={key} focus={null} onPlaced={() => {}} onClose={() => setOpen(false)}/>}
   </section>;
   if (!scan?.labels?.length) return null;          // no scan of this building: the geometry line above already says so
+  // A person's check of one AI room type. The answer comes back as the full set of labels, with the new count.
+  const check = async (roomId, right) => {
+    const response = await fetch("/api/buildings/"+encodeURIComponent(building.id)+"/rooms/"+encodeURIComponent(roomId)+"/check",
+      {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({right})});
+    if (response.ok) setScan(await response.json());
+  };
   const canFly = open && placed;
   return <section className="block scan">
     <header className="scan-head">
@@ -207,7 +215,7 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
         {open ? "Close tour" : "Open 3D tour"}<span className="pill-icon" aria-hidden="true">{open ? "×" : "↗"}</span></button>}
     </header>
     {!key && <p className="fine">Tour unavailable. The saved floor labels are below.</p>}
-    {open && <Tour scan={scan} sdkKey={key} focus={focus} onPlaced={setPlaced} onClose={() => setOpen(false)}/>}
+    {open && <Tour scan={tourScan} sdkKey={key} focus={focus} onPlaced={setPlaced} onClose={() => setOpen(false)}/>}
     <ul className="scan-labels" ref={list}>{scan.labels.map((l,i) => <li key={i}>
       <button className={"scan-label "+l.kind} aria-expanded={focus?.index === i}
               title={canFly ? "Fly to this label in the tour" : "Show how we know"}
@@ -218,14 +226,20 @@ export default function ScanPanel({building, focus, onFocus, onMarks}) {
       <p>{scan.room_summary.outer_wall} on the outer wall, {scan.room_summary.interior} interior, each measured from its own walls.
         Matterport gives a type to {scan.room_summary.typed} of them.</p>
       {scan.room_summary.walked > 0 && <p>An AI model looked at a panorama in {scan.room_summary.walked} {scan.room_summary.walked === 1 ? "room" : "rooms"} and saw: {tally(scan.room_summary.seen) || "nothing it could name"}.
-        Seen, not measured, and not confirmed by a person.</p>}
-      {scan.room_summary.walked > 0 && <p>Amenities it found on this floor: {tally(scan.room_summary.amenities) || "none"}.</p>}
+        Seen, not measured. {scan.room_summary.checked > 0
+          ? `A person checked ${scan.room_summary.checked} of them in the tour: ${scan.room_summary.right} right.`
+          : "Not confirmed by a person yet."}</p>}
+      {scan.room_summary.walked > 0 && <p>Amenities it found on this floor: {tally(scan.room_summary.amenities) || "none"}.
+        {scan.room_summary.checked > 0 && " Rooms a person marked wrong are left out."}</p>}
       <ul className="scan-labels">{scan.rooms.map((l,i) => <li key={i}>
         <button className={"scan-label "+l.kind+(l.tone ? " "+l.tone : "")} aria-expanded={focus?.index === scan.labels.length + i}
                 title={canFly ? "Fly to this room in the tour" : "Show how we know"}
                 onClick={() => onFocus(scan.labels.length + i)}>
           <span className="kind">{l.kind}{l.seen ? " · type seen by AI" : ""}</span>
-          <strong>{l.seen ? l.seen.type + " · " : ""}{l.title}</strong><small>{l.detail}</small></button></li>)}</ul>
+          <strong>{l.seen ? l.seen.type + " · " : ""}{l.title}</strong><small>{l.detail}</small></button>
+        {l.seen && <p className="room-check">Is "{l.seen.type}" right?
+          {["right","wrong"].map(answer => <button key={answer} className="text-button" aria-pressed={l.seen.checked === answer}
+            onClick={() => check(l.room_id, l.seen.checked === answer ? null : answer === "right")}>{answer === "right" ? "Right" : "Wrong"}</button>)}</p>}</li>)}</ul>
     </details>}
   </section>;
 }

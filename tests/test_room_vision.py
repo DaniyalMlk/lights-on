@@ -143,3 +143,37 @@ def test_labels_endpoint_adds_what_the_walk_saved(monkeypatch, tmp_path):
     out = TestClient(main.app).get("/api/buildings/779/labels").json()
     assert out["room_summary"]["amenities"] == {"Lounge": 1}
     assert sum(1 for room in out["rooms"] if room.get("seen")) == 1
+
+
+def test_a_persons_check_is_saved_shown_and_takes_a_wrong_room_out_of_the_amenities(monkeypatch, tmp_path):
+    monkeypatch.setattr(RV, "FLOORS_DIR", tmp_path)
+    seen = {"r00": {"type": "Private office", "evidence": "one desk", "pano_id": "p00"},
+            "r11": {"type": "Kitchen or break room", "evidence": "sink", "pano_id": "p11"}}
+    (tmp_path / "SCAN.rooms.json").write_text(json.dumps(seen))
+    RV.mark("SCAN", "r00", True)
+    RV.mark("SCAN", "r11", False)
+    out = floor_labels(FLOOR, GRID_SF, RV.load("SCAN"))
+    office = next(room for room in out["rooms"] if room.get("seen", {}).get("type") == "Private office")
+    kitchen = next(room for room in out["rooms"] if room.get("seen", {}).get("type", "").startswith("Kitchen"))
+    assert "A person checked it in the tour: right." in office["detail"] and office["room_id"] == "r00"
+    assert "A person checked it in the tour: wrong." in kitchen["detail"]
+    summary = out["room_summary"]
+    assert (summary["checked"], summary["right"]) == (2, 1)
+    assert summary["seen"] == {"Private office": 1, "Kitchen or break room": 1}      # what the model said stays on record
+    assert summary["amenities"] == {}                                                # but a wrong kitchen is not counted
+    RV.mark("SCAN", "r11", None)                                                     # taking the check back
+    assert "checked" not in RV.load("SCAN")["r11"]
+    with pytest.raises(KeyError):
+        RV.mark("SCAN", "nobody-looked-here", True)
+
+
+def test_looking_again_replaces_the_answer_and_the_check(monkeypatch, walk_setup, tmp_path):
+    calls, look = walk_setup
+    monkeypatch.setenv("COSTAR_LLM_OK", "yes")
+    RV.walk("SCAN", FLOOR, look=look, limit=2, say=lambda line: None)
+    first_room = next(iter(RV.load("SCAN")))
+    RV.mark("SCAN", first_room, True)
+    before = len(calls["looks"])
+    RV.walk("SCAN", FLOOR, look=look, limit=2, say=lambda line: None, again=True)
+    assert len(calls["looks"]) == before + 2                     # the same two rooms were looked at once more
+    assert "checked" not in RV.load("SCAN")[first_room]          # a new answer has not been checked by anyone

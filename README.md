@@ -47,7 +47,7 @@ python -m scripts.run_validation     # pre-registered checks -> work/proof.json 
 
 The agent needs `LIGHTS_ON_MODEL` in `.env` plus the matching LangChain provider package (examples in `.env.example`). Without it, the Agent tab replays the last recorded run and says so. `python -m scripts.record_traces` records one run per building.
 
-`python -m scripts.walk_scan "<building name>" --limit 5` walks a building's saved floor scan room by room: the model in `LIGHTS_ON_MODEL` looks at one panorama per room and names the room's type from a fixed list, and the app then shows the types and counts the amenities under "Every room, labeled". It sends panorama photos to that model, so it only runs with `COSTAR_LLM_OK=yes`, and it needs a model that reads images. Each such label says it was seen by a model and not confirmed by a person.
+`python -m scripts.walk_scan "<building name>" --limit 5` walks a building's saved floor scan room by room: the model in `LIGHTS_ON_MODEL` looks at one panorama per room and names the room's type from a fixed list, and the app then shows the types and counts the amenities under "Every room, labeled". It sends panorama photos to that model, so it only runs with `COSTAR_LLM_OK=yes`, and it needs a model that reads images. Each such label says it was seen by a model and not confirmed by a person. Add `--again` to look at the same rooms once more after the list of room types or the question changes. In the app a person can mark each AI room type Right or Wrong; the panel then says how many were checked and how many were right, and a room marked wrong is left out of the amenity count.
 
 ## Sponsor data rules
 

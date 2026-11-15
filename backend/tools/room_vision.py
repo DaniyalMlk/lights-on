@@ -22,9 +22,10 @@ from backend.matterport import FLOORS_DIR
 from backend.tools.matterport_plan import FT_PER_M, rooms_to_label
 
 # The only answers we accept. Anything else the model says becomes "Unclear" and gets no label.
-ROOM_TYPES = ("Open office", "Private office", "Meeting room", "Reception or lobby", "Corridor",
+ROOM_TYPES = ("Open office", "Private office", "Meeting room", "Reception or lobby", "Waiting area", "Corridor",
               "Kitchen or break room", "Lounge", "Gym", "Laundry", "Pool", "Restroom", "Storage",
-              "Mechanical or server room", "Elevator lobby", "Stair", "Empty shell space", "Unclear")
+              "Exam or treatment room", "Imaging room", "Lab or clinical utility room",      # medical office floors
+              "Mechanical or server room", "Elevator lobby", "Stair", "Vacant finished room", "Empty shell space", "Unclear")
 AMENITIES = ("Kitchen or break room", "Lounge", "Gym", "Laundry", "Pool")
 EVIDENCE_CHARS = 80
 
@@ -36,6 +37,12 @@ PROMPT = ("These four photos are the four sides of one panorama taken inside a r
           "building. Name the type of room the camera is standing in. Answer with JSON only, like "
           '{"type": "...", "evidence": "..."}. "type" must be exactly one of: ' + ", ".join(ROOM_TYPES) + ". "
           '"evidence" is what you can see that tells you, in at most ten words. '
+          "Name the room the camera stands in, not a room seen through a door or a window. A sign on a door names "
+          "the room behind that door: a camera in a hallway beside it is in a Corridor. "
+          "A sink with cabinets is a Kitchen or break room only if kitchen appliances are in view (refrigerator, "
+          "dishwasher, microwave, coffee machine); in a clinic it is an Exam or treatment room or a Lab or clinical "
+          "utility room. A finished room with nothing in it (flooring, ceiling tiles, painted walls) is a Vacant "
+          "finished room; Empty shell space is only bare structure with an exposed ceiling and no finishes. "
           'Go only by what is in the photos. If you cannot tell, answer "Unclear".')
 
 
@@ -55,6 +62,19 @@ def load(model_id: str) -> dict:
     """What the walk saved for this scan: {room id: {"type", "evidence", "pano_id"}}. Empty if it never ran."""
     path = FLOORS_DIR / f"{model_id}.rooms.json"
     return json.loads(path.read_text()) if path.exists() else {}
+
+
+def mark(model_id: str, room_id: str, right: bool | None) -> dict:
+    """A person's check of one room the model looked at: right, wrong, or None to take the check back."""
+    seen = load(model_id)
+    if room_id not in seen:
+        raise KeyError(room_id)
+    if right is None:
+        seen[room_id].pop("checked", None)
+    else:
+        seen[room_id]["checked"] = "right" if right else "wrong"
+    (FLOORS_DIR / f"{model_id}.rooms.json").write_text(json.dumps(seen, indent=1))
+    return seen[room_id]
 
 
 def read_answer(text: str) -> dict:
@@ -93,15 +113,17 @@ def model_look():
     return look
 
 
-def walk(model_id: str, model: dict, look=None, limit: int | None = None, say=print) -> dict:
+def walk(model_id: str, model: dict, look=None, limit: int | None = None, say=print, again: bool = False) -> dict:
     """Look at every room that has a panorama and has not been looked at yet. Saves after each room, so a walk
-    that stops (rate limit, wifi) carries on from there next time. Returns everything seen so far."""
+    that stops (rate limit, wifi) carries on from there next time. Returns everything seen so far.
+    again=True looks at every room once more (after the list of types or the question changed); a new answer
+    replaces the old one and any person's check of it."""
     from backend.agent import real_data_allowed
     if not real_data_allowed():
         raise PermissionError("The panoramas are sponsor data: the vision walk only runs once CoStar has cleared "
                               "sending them to a hosted model (COSTAR_LLM_OK=yes in .env)")
     seen = load(model_id)
-    todo = [(room_id, pano_id) for room_id, pano_id in pano_for_each_room(model).items() if room_id not in seen][:limit]
+    todo = [(room_id, pano_id) for room_id, pano_id in pano_for_each_room(model).items() if again or room_id not in seen][:limit]
     if not todo:
         return seen
     # The photo links expire, so they are asked for fresh on every walk and never saved
