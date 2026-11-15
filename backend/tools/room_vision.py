@@ -116,7 +116,7 @@ def walk(model_id: str, model: dict, look=None, limit: int | None = None, say=pr
         try:
             answer = look([_download(url) for url in sides])
         except Exception as error:                          # a slow model or a dropped connection: try this room next time
-            say(f"room {n} of {len(todo)}: skipped ({type(error).__name__})")
+            say(f"room {n} of {len(todo)}: skipped ({type(error).__name__}: {str(error)[:300]})")
             continue
         seen[room_id] = {**answer, "pano_id": pano_id}
         FLOORS_DIR.mkdir(parents=True, exist_ok=True)
